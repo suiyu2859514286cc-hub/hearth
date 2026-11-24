@@ -95,6 +95,12 @@ public partial class ImportWindow : Window
         var ok = false;
         var result = "";
 
+        if (_pack == null)
+        {
+            StatusText.Text = "整合包信息还没读出来，稍等一下再点";
+            return;
+        }
+
         try
         {
             var name = NameRow.Visibility == Visibility.Visible ? NameBox.Text : null;

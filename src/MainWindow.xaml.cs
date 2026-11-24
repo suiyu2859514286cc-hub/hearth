@@ -1997,12 +1997,6 @@ public partial class MainWindow : Window
         win.ShowDialog();
     }
 
-    private void NotReady_Click(object sender, RoutedEventArgs e)
-    {
-        var name = sender is Button b && b.Tag is string tag ? tag : "这个";
-        DarkDialog.Toast(this, name + "还没做，先放着");
-    }
-
     // ===== 整合包导入 =====
 
     private void ImportPack_Click(object sender, RoutedEventArgs e) => OpenImport();

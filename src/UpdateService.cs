@@ -182,14 +182,26 @@ public static class UpdateService
             throw new InvalidOperationException("不认识的更新包格式：" + info.FileName);
         }
 
-        // 替换脚本：等启动器退出 → 覆盖 exe → 重新打开
+        // 替换脚本：等启动器退出 → 覆盖 exe（失败就重试）→ 重新打开
+        // 注意：只在复制成功后才重启，否则会把旧的再打开，看着像"更新没生效"
         var bat = Path.Combine(tempDir, "apply-update.bat");
         var script =
             "@echo off\r\n" +
+            "setlocal enabledelayedexpansion\r\n" +
             "timeout /t 2 /nobreak >nul\r\n" +
-            "copy /y \"" + newExe + "\" \"" + appExe + "\" >nul\r\n" +
+            "set tries=0\r\n" +
+            ":retry\r\n" +
+            "copy /y \"" + newExe + "\" \"" + appExe + "\" >nul 2>&1\r\n" +
+            "if errorlevel 1 (\r\n" +
+            "  set /a tries+=1\r\n" +
+            "  if !tries! lss 20 (\r\n" +
+            "    timeout /t 1 /nobreak >nul\r\n" +
+            "    goto retry\r\n" +
+            "  )\r\n" +
+            ")\r\n" +
             "start \"\" \"" + appExe + "\"\r\n" +
-            "del \"%~f0\"\r\n";
+            "timeout /t 1 /nobreak >nul\r\n" +
+            "rmdir /s /q \"" + tempDir + "\" >nul 2>&1\r\n";
 
         File.WriteAllText(bat, script, System.Text.Encoding.Default);
         return bat;
