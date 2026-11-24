@@ -481,6 +481,7 @@ public partial class SettingsView : UserControl
 
         // 微软登录
         var loginStack = new StackPanel();
+        // 客户端 ID 默认藏起来：普通用户不需要看，也不该改
         var msBox = new TextBox
         {
             Text = AppSettings.Get("msClientId", ""),
@@ -493,14 +494,30 @@ public partial class SettingsView : UserControl
             HorizontalAlignment = HorizontalAlignment.Left
         };
         msBox.TextChanged += (_, _) => AppSettings.Set("msClientId", msBox.Text.Trim());
+
         var msRow = new StackPanel { Orientation = Orientation.Horizontal };
         var msLabel = Text("客户端 ID", 10.5, "#B9C9DC");
         msLabel.VerticalAlignment = VerticalAlignment.Center;
         msLabel.Margin = new Thickness(0, 0, 10, 0);
         msRow.Children.Add(msLabel);
         msRow.Children.Add(msBox);
-        loginStack.Children.Add(msRow);
-        loginStack.Children.Add(Text("Azure 应用注册里的「应用程序(客户端) ID」，正版登录要用", 9.5, "#6B7C92"));
+
+        var advancedBody = new StackPanel { Visibility = Visibility.Collapsed, Margin = new Thickness(0, 8, 0, 0) };
+        advancedBody.Children.Add(msRow);
+        advancedBody.Children.Add(Text("只有自己注册了 Azure 应用才需要改，留空就用内置的", 9.5, "#6B7C92"));
+
+        var advancedToggle = new CheckBox
+        {
+            Content = "高级选项",
+            IsChecked = false,
+            Foreground = new SolidColorBrush(Color.FromRgb(0xB9, 0xC9, 0xDC)),
+            FontSize = 10
+        };
+        advancedToggle.Checked += (_, _) => advancedBody.Visibility = Visibility.Visible;
+        advancedToggle.Unchecked += (_, _) => advancedBody.Visibility = Visibility.Collapsed;
+
+        loginStack.Children.Add(advancedToggle);
+        loginStack.Children.Add(advancedBody);
         PageHost.Children.Add(Card("微软登录", loginStack));
 
         var about = new StackPanel();
