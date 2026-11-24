@@ -2093,13 +2093,20 @@ public partial class MainWindow : Window
 
         if (!string.IsNullOrWhiteSpace(info.Notes))
         {
-            body.Children.Add(new TextBlock
+            // 更新说明可能很长，套个滚动条
+            body.Children.Add(new ScrollViewer
             {
-                Text = info.Notes,
-                FontSize = 11,
-                Foreground = new SolidColorBrush(Color.FromRgb(0x8F, 0xA0, 0xB8)),
-                TextWrapping = TextWrapping.Wrap,
-                MaxHeight = 260
+                MaxHeight = 300,
+                VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+                Margin = new Thickness(0, 2, 0, 0),
+                Content = new TextBlock
+                {
+                    Text = info.Notes,
+                    FontSize = 11,
+                    Foreground = new SolidColorBrush(Color.FromRgb(0x8F, 0xA0, 0xB8)),
+                    TextWrapping = TextWrapping.Wrap,
+                    LineHeight = 18
+                }
             });
         }
 
