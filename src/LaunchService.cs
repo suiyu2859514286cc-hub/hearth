@@ -177,6 +177,8 @@ public static class LaunchService
     {
         try
         {
+            ct.ThrowIfCancellationRequested();
+
             var mc = McDir;
             var vDir = Path.Combine(mc, "versions", versionId);
             var gameDir = VersionMeta.GameDir(versionId);   // 版本隔离时是版本自己的文件夹
@@ -209,6 +211,8 @@ public static class LaunchService
                 }
             }
             if (java == null) return (false, "没找到 Java " + wantedMajor + "，先装一个 JDK");
+
+            ct.ThrowIfCancellationRequested();
 
             var cp = new List<string>();
             if (root["libraries"] is JsonArray libs)
@@ -327,6 +331,8 @@ public static class LaunchService
             };
             foreach (var a in args) psi.ArgumentList.Add(a);
 
+            ct.ThrowIfCancellationRequested();
+
             var logPath = Path.Combine(Path.GetTempPath(), "hearth-launch.log");
             try
             {
@@ -349,6 +355,10 @@ public static class LaunchService
             if (proc.HasExited) return (false, "游戏启动后立刻退出了，看 " + logPath);
 
             return (true, "已用 Java " + wantedMajor + " 启动 " + versionId);
+        }
+        catch (OperationCanceledException)
+        {
+            return (false, "已取消启动");
         }
         catch (Exception ex)
         {

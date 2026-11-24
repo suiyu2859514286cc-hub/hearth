@@ -2289,6 +2289,12 @@ public partial class MainWindow : Window
         var old = LaunchBtn.Content;
         LaunchBtn.Content = "启 动 中 …";
         LaunchProgress.Visibility = Visibility.Visible;
+
+        // 可以中途取消
+        _launchCts?.Dispose();
+        _launchCts = new CancellationTokenSource();
+        var launchToken = _launchCts.Token;
+        if (LaunchCancelBtn != null) LaunchCancelBtn.Visibility = Visibility.Visible;
         ProgressText.Text = "正在检查 Java…";
 
         var steps = new (string Text, int To)[]
@@ -2342,7 +2348,7 @@ public partial class MainWindow : Window
         var javaProgress = new Progress<(string Msg, double Pct)>(p => ProgressText.Text = p.Msg);
 
         var (ok, message) = await LaunchService.LaunchAsync(
-            versionId, player, mem, javaProgress, CancellationToken.None, token, accountUuid,
+            versionId, player, mem, javaProgress, launchToken, token, accountUuid,
             major => Dispatcher.Invoke(() => DarkDialog.Confirm(
                 this,
                 "需要 Java " + major,
@@ -2350,13 +2356,47 @@ public partial class MainWindow : Window
                 "下载", "取消")));
 
         ProgressText.Text = message;
+
         if (ok)
         {
             var count = ThemeService.CountLaunch();
             ProgressText.Text = message + "  （累计启动 " + count + " 次）";
+            DarkDialog.Toast(this, "启动成功");
             await Task.Delay(900);
         }
-        else await Task.Delay(2600);
+        else
+        {
+            // 失败要说清楚，并把日志路径给出来
+            var cancelled = launchToken.IsCancellationRequested;
+            if (cancelled)
+            {
+                ProgressText.Text = "已取消启动";
+            }
+            else
+            {
+                ProgressText.Text = "启动失败";
+                var logPath = Path.Combine(Path.GetTempPath(), "hearth-launch.log");
+                var detail = message;
+                try
+                {
+                    if (File.Exists(logPath))
+                    {
+                        var tail = File.ReadAllText(logPath);
+                        if (tail.Length > 1500) tail = "…" + tail[^1500..];
+                        detail += Environment.NewLine + Environment.NewLine + "最近的日志：" +
+                                  Environment.NewLine + tail;
+                    }
+                }
+                catch { }
+
+                DarkDialog.Info(this, "启动失败", detail);
+            }
+            await Task.Delay(600);
+        }
+
+        if (LaunchCancelBtn != null) LaunchCancelBtn.Visibility = Visibility.Collapsed;
+        _launchCts?.Dispose();
+        _launchCts = null;
 
         ProgressFill.BeginAnimation(FrameworkElement.WidthProperty, null);
         ProgressFill.Width = 0;
@@ -2364,6 +2404,19 @@ public partial class MainWindow : Window
         LaunchBtn.Content = old;
         LaunchBtn.IsEnabled = true;
         _launching = false;
+    }
+
+    private CancellationTokenSource? _launchCts;
+
+    private void LaunchCancel_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            _launchCts?.Cancel();
+            ProgressText.Text = "正在取消…";
+            if (LaunchCancelBtn != null) LaunchCancelBtn.Visibility = Visibility.Collapsed;
+        }
+        catch { }
     }
 
     // ===== 布局编辑 =====

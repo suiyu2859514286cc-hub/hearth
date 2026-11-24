@@ -500,7 +500,15 @@
                                 <Grid Height="4" Background="#33FFFFFF" ClipToBounds="True">
                                     <Border x:Name="ProgressFill" HorizontalAlignment="Left" Width="0" Background="#66C8FF" CornerRadius="2"/>
                                 </Grid>
-                                <TextBlock x:Name="ProgressText" Text="正在准备…" FontSize="9.5" Foreground="#B9C9DC" HorizontalAlignment="Center" Margin="0,7,0,0"/>
+                                <Grid Margin="0,7,0,0">
+                                    <TextBlock x:Name="ProgressText" Text="正在准备…" FontSize="9.5" Foreground="#B9C9DC"
+                                               HorizontalAlignment="Center" VerticalAlignment="Center"
+                                               TextTrimming="CharacterEllipsis"/>
+                                    <Button x:Name="LaunchCancelBtn" Content="取消启动" HorizontalAlignment="Right"
+                                            Visibility="Collapsed" FontSize="9.5" Padding="8,3" Cursor="Hand"
+                                            Background="#33EF4444" BorderBrush="#66EF4444" BorderThickness="1"
+                                            Foreground="#FFD6D6" Click="LaunchCancel_Click"/>
+                                </Grid>
                             </StackPanel>
 
                             <UniformGrid Columns="2" Margin="0,7,0,0">
