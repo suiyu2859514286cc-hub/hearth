@@ -1867,47 +1867,106 @@ public partial class MainWindow : Window
         FolderBtn.Content = "📁 " + name + " ▾";
     }
 
+    private System.Windows.Controls.Primitives.Popup? _folderPopup;
+
     private void FolderBtn_Click(object sender, RoutedEventArgs e)
     {
-        var menu = new ContextMenu();
+        // 自绘面板，不用 ContextMenu（它的模板会被系统主题搞成白色）
+        _folderPopup?.SetCurrentValue(System.Windows.Controls.Primitives.Popup.IsOpenProperty, false);
+
+        var panel = new StackPanel { MinWidth = 230 };
+
+        Border MakeRow(string text, bool isCurrent, Action onClick)
+        {
+            var row = new Border
+            {
+                CornerRadius = new CornerRadius(6),
+                Padding = new Thickness(10, 7, 10, 7),
+                Background = isCurrent
+                    ? new SolidColorBrush(Color.FromArgb(0x40, 0x25, 0x63, 0xEB))
+                    : Brushes.Transparent,
+                Cursor = System.Windows.Input.Cursors.Hand
+            };
+
+            var label = new TextBlock
+            {
+                Text = text,
+                FontSize = 11.5,
+                Foreground = new SolidColorBrush(Color.FromRgb(0xE8, 0xF0, 0xFA)),
+                TextTrimming = TextTrimming.CharacterEllipsis
+            };
+            row.Child = label;
+
+            row.MouseEnter += (_, _) =>
+            {
+                if (!isCurrent)
+                    row.Background = new SolidColorBrush(Color.FromArgb(0x26, 0xFF, 0xFF, 0xFF));
+            };
+            row.MouseLeave += (_, _) =>
+            {
+                if (!isCurrent) row.Background = Brushes.Transparent;
+            };
+            row.MouseLeftButtonUp += (_, _) =>
+            {
+                if (_folderPopup != null) _folderPopup.IsOpen = false;
+                onClick();
+            };
+
+            return row;
+        }
 
         foreach (var folder in GameFolderService.Folders)
         {
             var count = GameFolderService.CountVersions(folder.Path);
             var isCurrent = string.Equals(folder.Path, GameFolderService.CurrentPath, StringComparison.OrdinalIgnoreCase);
-            var item = new MenuItem
-            {
-                Header = (isCurrent ? "✓ " : "   ") + folder.Name + "（" + count + " 个版本）",
-                Tag = folder.Path
-            };
-            item.Click += (_, _) => GameFolderService.Switch(folder.Path);
-            menu.Items.Add(item);
+            var captured = folder.Path;
+
+            panel.Children.Add(MakeRow(
+                (isCurrent ? "✓  " : "     ") + folder.Name + "（" + count + " 个版本）",
+                isCurrent,
+                () => GameFolderService.Switch(captured)));
         }
 
-        menu.Items.Add(new Separator());
-
-        var add = new MenuItem { Header = "＋ 添加文件夹…" };
-        add.Click += (_, _) =>
+        panel.Children.Add(new Border
         {
-            var dialog = new Microsoft.Win32.OpenFolderDialog
-            {
-                Title = "选择游戏文件夹（.minecraft）"
-            };
-            if (dialog.ShowDialog(this) == true)
-                GameFolderService.Add(dialog.FolderName);
-        };
-        menu.Items.Add(add);
+            Height = 1,
+            Margin = new Thickness(4, 5, 4, 5),
+            Background = new SolidColorBrush(Color.FromArgb(0x33, 0xFF, 0xFF, 0xFF))
+        });
+
+        panel.Children.Add(MakeRow("＋ 添加文件夹…", false, () =>
+        {
+            var dialog = new Microsoft.Win32.OpenFolderDialog { Title = "选择游戏文件夹（.minecraft）" };
+            if (dialog.ShowDialog(this) == true) GameFolderService.Add(dialog.FolderName);
+        }));
 
         if (GameFolderService.Folders.Count > 1)
         {
-            var remove = new MenuItem { Header = "移除当前文件夹（不删文件）" };
-            remove.Click += (_, _) => GameFolderService.Remove(GameFolderService.CurrentPath);
-            menu.Items.Add(remove);
+            panel.Children.Add(MakeRow("移除当前文件夹（不删文件）", false,
+                () => GameFolderService.Remove(GameFolderService.CurrentPath)));
         }
 
-        menu.PlacementTarget = FolderBtn;
-        menu.Placement = System.Windows.Controls.Primitives.PlacementMode.Bottom;
-        menu.IsOpen = true;
+        var border = new Border
+        {
+            Background = new SolidColorBrush(Color.FromArgb(0xFA, 0x16, 0x1E, 0x2A)),
+            BorderBrush = new SolidColorBrush(Color.FromArgb(0x44, 0xFF, 0xFF, 0xFF)),
+            BorderThickness = new Thickness(1),
+            CornerRadius = new CornerRadius(9),
+            Padding = new Thickness(5)
+        };
+        border.Child = panel;
+
+        _folderPopup = new System.Windows.Controls.Primitives.Popup
+        {
+            Child = border,
+            PlacementTarget = FolderBtn,
+            Placement = System.Windows.Controls.Primitives.PlacementMode.Bottom,
+            StaysOpen = false,
+            AllowsTransparency = true,
+            VerticalOffset = 4
+        };
+
+        _folderPopup.IsOpen = true;
     }
 
     private void NavSettings_Click(object sender, RoutedEventArgs e)

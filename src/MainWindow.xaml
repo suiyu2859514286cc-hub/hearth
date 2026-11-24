@@ -346,6 +346,8 @@
                             <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                                 <Button x:Name="FolderBtn" Content="📁 默认 ▾" Click="FolderBtn_Click"
                                         Style="{StaticResource Ghost}" FontSize="10.5" Padding="9,4" Margin="0,0,10,0"
+                                        Background="#33101720" BorderBrush="#40FFFFFF" Foreground="#E8F0FA"
+                                        FocusVisualStyle="{x:Null}"
                                         ToolTip="切换游戏文件夹"/>
                                 <TextBlock Text="版本选择" FontSize="14" FontWeight="Bold" Foreground="#FFFFFF"/>
                                 <TextBlock x:Name="VersionCount" Text="" FontSize="10" Foreground="#B9C9DC" Margin="8,2,0,0"/>
@@ -522,15 +524,6 @@
                                 </StackPanel>
                             </Border>
 
-                            <Border Style="{StaticResource GlassCard}" Padding="12,10" Margin="0,8,0,0">
-                                <StackPanel>
-                                    <TextBlock Text="快捷入口" FontSize="10" Foreground="#B9C9DC" Margin="0,0,0,8"/>
-                                    <UniformGrid Columns="2">
-                                        <Button Content="▣ 导入整合包" Style="{StaticResource Ghost}" FontSize="10" Padding="6,5" Margin="0,0,2,2"/>
-                                        <Button Content="⚙ 全局设置" Style="{StaticResource Ghost}" FontSize="10" Padding="6,5" Margin="2,0,0,2"/>
-                                    </UniformGrid>
-                                </StackPanel>
-                            </Border>
                         </StackPanel>
                       </Grid>
                     </ScrollViewer>

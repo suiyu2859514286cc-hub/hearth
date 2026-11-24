@@ -11,9 +11,9 @@
     <Product>Hearth</Product>
     <AssemblyTitle>Hearth</AssemblyTitle>
     <Company>Hearth</Company>
-    <Version>0.2.0</Version>
-    <FileVersion>0.2.0.0</FileVersion>
-    <InformationalVersion>0.2.0-beta</InformationalVersion>
+    <Version>0.2.1</Version>
+    <FileVersion>0.2.1.0</FileVersion>
+    <InformationalVersion>0.2.1-beta</InformationalVersion>
 
     <!-- 发布成单文件 exe，直接放根目录双击就能用 -->
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>

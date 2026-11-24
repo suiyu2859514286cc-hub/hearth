@@ -9,7 +9,7 @@ namespace BlockLauncher;
 public static class AppSettings
 {
     /// <summary>启动器版本号（改这里，全项目跟着变）</summary>
-    public const string Version = "0.2.0-beta";
+    public const string Version = "0.2.1-beta";
 
     /// <summary>启动器更新模式：auto（自动检查）/ off（关闭提示）</summary>
     public static string UpdateMode => Get("updateMode", "auto");
