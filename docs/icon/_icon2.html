@@ -1,0 +1,66 @@
+<html><body style="margin:0;background:transparent"><svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#1b2438"/><stop offset="100%" stop-color="#0d1220"/>
+    </linearGradient>
+    <linearGradient id="top" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#5b6b8a"/><stop offset="100%" stop-color="#3d4a63"/>
+    </linearGradient>
+    <linearGradient id="left" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#2c3648"/><stop offset="100%" stop-color="#1d2532"/>
+    </linearGradient>
+    <linearGradient id="right" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#232c3d"/><stop offset="100%" stop-color="#161d28"/>
+    </linearGradient>
+    <radialGradient id="flame" cx="50%" cy="65%" r="60%">
+      <stop offset="0%" stop-color="#FFE08A"/>
+      <stop offset="45%" stop-color="#FFB03A"/>
+      <stop offset="100%" stop-color="#F97316"/>
+    </radialGradient>
+    <radialGradient id="flameIn" cx="50%" cy="70%" r="55%">
+      <stop offset="0%" stop-color="#FFF7C2"/>
+      <stop offset="60%" stop-color="#FFD75E"/>
+      <stop offset="100%" stop-color="#FFB238"/>
+    </radialGradient>
+    <filter id="glow" x="-60%" y="-60%" width="220%" height="220%">
+      <feGaussianBlur stdDeviation="16" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <filter id="soft" x="-80%" y="-80%" width="260%" height="260%">
+      <feGaussianBlur stdDeviation="28"/>
+    </filter>
+  </defs>
+
+  <rect width="512" height="512" rx="112" fill="url(#bg)"/>
+
+  <!-- 地面阴影 -->
+  <ellipse cx="256" cy="414" rx="146" ry="28" fill="#070b12" opacity="0.65"/>
+
+  <!-- 火光晕 -->
+  <ellipse cx="256" cy="226" rx="120" ry="130" fill="#FF8C42" opacity="0.30" filter="url(#soft)"/>
+
+  <!-- 等距方块 -->
+  <polygon points="256,196 388,272 256,348 124,272" fill="url(#top)"/>
+  <polygon points="124,272 256,348 256,438 124,362" fill="url(#left)"/>
+  <polygon points="388,272 256,348 256,438 388,362" fill="url(#right)"/>
+  <polygon points="256,196 388,272 256,348 124,272" fill="none" stroke="#8ea3c7" stroke-width="2" opacity="0.45"/>
+
+  <!-- 火焰 -->
+  <g filter="url(#glow)">
+    <path d="M256 96
+             C 296 152, 314 186, 314 220
+             C 314 258, 288 282, 256 282
+             C 224 282, 198 258, 198 220
+             C 198 186, 216 152, 256 96 Z"
+          fill="url(#flame)"/>
+    <path d="M256 158
+             C 278 192, 288 212, 288 232
+             C 288 252, 274 264, 256 264
+             C 238 264, 224 252, 224 232
+             C 224 212, 234 192, 256 158 Z"
+          fill="url(#flameIn)"/>
+  </g>
+
+  <!-- 方块顶面上的一点反光 -->
+  <polygon points="256,206 330,248 256,290 182,248" fill="#FFC97A" opacity="0.30"/>
+</svg></body></html>

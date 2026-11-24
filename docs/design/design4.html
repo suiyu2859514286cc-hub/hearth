@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="zh-CN"><head><meta charset="utf-8">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{width:1140px;height:720px;font-family:"Microsoft YaHei UI","Microsoft YaHei",sans-serif;background:#12151c;color:#dbe3ee;overflow:hidden;border:1px solid #2a3040}
+.shell{display:flex;flex-direction:column;height:100%}
+/* 标题栏 */
+.tbar{height:42px;background:#0d1017;display:flex;align-items:center;padding:0 0 0 14px;border-bottom:1px solid #1e2431;user-select:none}
+.tbar .logo{font-size:13.5px;font-weight:700;color:#79a9ff;letter-spacing:.3px}
+.tbar .logo i{font-style:normal;color:#4a5568;font-weight:400;font-size:11px;margin-left:8px}
+.tbar .win{margin-left:auto;display:flex;height:100%}
+.tbar .win div{width:46px;display:flex;align-items:center;justify-content:center;font-size:12px;color:#8b97ab;cursor:pointer}
+.tbar .win div:hover{background:#1a1f2b;color:#fff}
+.tbar .win .x:hover{background:#e81123;color:#fff}
+/* 主体 */
+.body{flex:1;display:flex;overflow:hidden}
+/* 侧边栏 */
+.side{width:186px;background:#0f131a;border-right:1px solid #1e2431;display:flex;flex-direction:column;padding:10px 8px}
+.nav{display:flex;flex-direction:column;gap:2px}
+.nav a{display:flex;align-items:center;gap:11px;padding:10px 12px;border-radius:7px;font-size:13px;color:#8b97ab;cursor:pointer;position:relative}
+.nav a:hover{background:#171d27;color:#c9d5e6}
+.nav a.on{background:#1a2333;color:#79a9ff;font-weight:600}
+.nav a.on:before{content:"";position:absolute;left:0;top:9px;bottom:9px;width:3px;border-radius:2px;background:#3b82f6}
+.nav .ico{width:17px;text-align:center;font-size:14px}
+.side .sep{height:1px;background:#1e2431;margin:10px 6px}
+.side .tip{margin-top:auto;padding:10px 12px;font-size:10.5px;color:#4a5568;line-height:1.7;border-top:1px solid #1e2431}
+/* 内容 */
+.main{flex:1;display:flex;flex-direction:column;overflow:hidden}
+.mhead{height:50px;display:flex;align-items:center;padding:0 18px;gap:10px;border-bottom:1px solid #1e2431;background:#10141b}
+.mhead .t{font-size:14.5px;font-weight:700}
+.mhead .cnt{font-size:11px;color:#5a6478;background:#1a1f2b;padding:2px 8px;border-radius:10px}
+.mhead .sp{margin-left:auto;display:flex;gap:8px}
+.btn{background:#212938;border:1px solid #2c3547;color:#c9d5e6;padding:6px 14px;border-radius:7px;font-size:12px;cursor:pointer}
+.btn:hover{border-color:#3b82f6;color:#79a9ff}
+.btn.pri{background:linear-gradient(180deg,#3b82f6,#2563eb);border-color:#2563eb;color:#fff;font-weight:600;box-shadow:0 2px 10px rgba(37,99,235,.35)}
+.btn.pri:hover{filter:brightness(1.1)}
+/* 版本列表 */
+.list{flex:1;overflow:auto;padding:10px 12px}
+.row{display:flex;align-items:center;gap:13px;padding:11px 13px;border-radius:9px;margin-bottom:5px;cursor:pointer;border:1px solid transparent;background:#141922}
+.row:hover{background:#181f2b;border-color:#232c3d}
+.row.on{background:#1a2433;border-color:#2f4d7a}
+.ava{width:38px;height:38px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0;background:#1e2735;border:1px solid #263042}
+.ava.f{background:linear-gradient(135deg,#2a1f3d,#3d2a55);border-color:#4a3570}
+.ava.van{background:linear-gradient(135deg,#1f3a2a,#28523a);border-color:#2f6b45}
+.info{flex:1;min-width:0}
+.info .n{font-size:13.5px;font-weight:600;margin-bottom:3px;display:flex;align-items:center;gap:8px}
+.info .n em{font-style:normal;font-size:10px;padding:1px 6px;border-radius:4px;font-weight:500}
+.e-ready{background:#12301f;color:#4ade80}
+.e-dl{background:#332a11;color:#fbbf24}
+.e-new{background:#2a1a33;color:#c084fc}
+.info .m{font-size:11px;color:#66738a;display:flex;gap:12px}
+.info .m b{color:#8b97ab;font-weight:500}
+.state{text-align:right;flex-shrink:0;font-size:11px;color:#66738a;line-height:1.6}
+.state .go{color:#4ade80}
+/* 底部状态栏 */
+.sbar{height:30px;background:#0d1017;border-top:1px solid #1e2431;display:flex;align-items:center;padding:0 14px;font-size:10.5px;color:#5a6478;gap:16px}
+.sbar .dot{width:6px;height:6px;border-radius:50%;background:#4ade80;display:inline-block;margin-right:6px}
+.sbar .r{margin-left:auto;display:flex;gap:16px}
+.prog{width:120px;height:4px;background:#1a1f2b;border-radius:2px;overflow:hidden}
+.prog i{display:block;height:100%;width:38%;background:linear-gradient(90deg,#3b82f6,#60a5fa)}
+</style></head><body>
+<div class="shell">
+  <div class="tbar">
+    <div class="logo">方块启动器 <i>BlockLauncher 0.1.0</i></div>
+    <div class="win"><div>—</div><div>□</div><div class="x">✕</div></div>
+  </div>
+  <div class="body">
+    <div class="side">
+      <div class="nav">
+        <a class="on"><span class="ico">▦</span>游戏实例</a>
+        <a><span class="ico">↓</span>下载版本</a>
+        <a><span class="ico">◈</span>模组管理</a>
+        <a><span class="ico">◫</span>整合包</a>
+        <a><span class="ico">◎</span>资源中心</a>
+      </div>
+      <div class="sep"></div>
+      <div class="nav">
+        <a><span class="ico">⚙</span>设置</a>
+        <a><span class="ico">?</span>帮助与反馈</a>
+      </div>
+      <div class="tip">版本 0.1.0 · 自研发布<br>基于 Mojang 公开 API</div>
+    </div>
+    <div class="main">
+      <div class="mhead">
+        <div class="t">游戏实例</div>
+        <div class="cnt">4 个</div>
+        <div class="sp">
+          <button class="btn">导入实例</button>
+          <button class="btn pri">＋ 新建</button>
+        </div>
+      </div>
+      <div class="list">
+        <div class="row on">
+          <div class="ava f">⛏</div>
+          <div class="info">
+            <div class="n">1.21.4 生存服 <em class="e-ready">就绪</em></div>
+            <div class="m"><span>Fabric <b>0.16.9</b></span><span>Java <b>21</b></span><span>内存 <b>4096 MB</b></span></div>
+          </div>
+          <div class="state"><div class="go">已就绪</div><div>2 小时前</div></div>
+        </div>
+        <div class="row">
+          <div class="ava f">⛏</div>
+          <div class="info">
+            <div class="n">1.20.1 整合包 <em class="e-ready">就绪</em></div>
+            <div class="m"><span>Forge <b>47.3.0</b></span><span>Java <b>17</b></span><span>内存 <b>6144 MB</b></span></div>
+          </div>
+          <div class="state"><div class="go">已就绪</div><div>昨天</div></div>
+        </div>
+        <div class="row">
+          <div class="ava van">◈</div>
+          <div class="info">
+            <div class="n">26.3 最新版 <em class="e-new">可更新</em></div>
+            <div class="m"><span>原版 <b>Vanilla</b></span><span>Java <b>未安装</b></span><span>大小 <b>0 MB</b></span></div>
+          </div>
+          <div class="state"><div style="color:#fbbf24">待下载</div><div>—</div></div>
+        </div>
+        <div class="row">
+          <div class="ava f">⛏</div>
+          <div class="info">
+            <div class="n">1.12.2 怀旧服 <em class="e-ready">就绪</em></div>
+            <div class="m"><span>Forge <b>14.23.5</b></span><span>Java <b>8</b></span><span>内存 <b>3072 MB</b></span></div>
+          </div>
+          <div class="state"><div class="go">已就绪</div><div>3 天前</div></div>
+        </div>
+      </div>
+      <div class="sbar">
+        <span><span class="dot"></span>正在校验资源</span>
+        <div class="prog"><i></i></div>
+        <span>38%</span>
+        <div class="r"><span>未登录</span><span>·</span><span>下载源 官方</span><span>·</span><span>0/4 任务</span></div>
+      </div>
+    </div>
+  </div>
+</div></body></html>

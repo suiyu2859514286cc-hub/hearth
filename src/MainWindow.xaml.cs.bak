@@ -1,0 +1,852 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
+using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
+using System.Windows.Input;
+using System.Windows.Media;
+using System.Windows.Media.Animation;
+
+namespace BlockLauncher;
+
+public partial class MainWindow : Window
+{
+    public MainWindow()
+    {
+        InitializeComponent();
+        LoadInstances();
+        BuildMods();
+        BuildHistory();
+        Loaded += (_, _) =>
+        {
+            AcrylicHelper.Enable(this, 0xCC0B0F16);
+            DwmHelper.Setup(this);
+            NavPanel.Visibility = Visibility.Collapsed;
+            NavColumn.Width = new GridLength(0);
+            DetailColumn.Width = new GridLength(0);
+            // 强制从首页开始
+            HomeView.Visibility = Visibility.Visible;
+            VersionsView.Visibility = Visibility.Collapsed;
+            SetDailyQuote();
+            ApplySavedLayout();
+            StartBreathing();
+            StartFadeIn();
+        };
+        PreviewKeyDown += (s, e) =>
+        {
+            if (e.Key == Key.E && Keyboard.Modifiers == ModifierKeys.Control)
+            {
+                ToggleEditMode();
+                e.Handled = true;
+            }
+        };
+    }
+
+    // ===== 日志 =====
+    private static void Log(string msg)
+    {
+        try
+        {
+            System.IO.File.AppendAllText(
+                System.IO.Path.Combine(System.IO.Path.GetTempPath(), "blocklauncher.log"),
+                $"{DateTime.Now:HH:mm:ss} {msg}\n");
+        }
+        catch { }
+    }
+
+    // ===== 你知道吗 =====
+    private static readonly string[] Tips =
+    {
+        "苦力怕原本是猪的模型做坏了的产物，Notch 觉得效果不错就留下来了。",
+        "末影人（Enderman）的设计灵感来自恐怖游戏里的「瘦长鬼影」（Slender Man）。",
+        "用钻石镐挖一块黑曜石需要 9.4 秒，用下界合金镐要 8.35 秒。",
+        "下界合金装备掉进熔岩里不会被烧毁，会被弹出来。",
+        "Minecraft 最早只有 32 种方块，现在有 800 多种。",
+        "鸡下蛋的时候不需要附近的公鸡。",
+        "信标（Beacon）的光束垂直向上可以照亮 384 格。",
+        "末影珍珠传送会扣 5 点生命值（2.5 颗心）。",
+        "在 1.9 版本之后，剑有冷却时间，连续点击反而伤害更低。",
+        "潜影贝的子弹打中同类会分裂出新的潜影贝。",
+        "铁傀儡会给村庄里的小孩送花。",
+        "猫可以吓退苦力怕，也能把幻翼吓跑。",
+        "用剪刀给羊剪毛，羊毛会掉一地；用染料还能给羊染色。",
+        "下界传送门用黑曜石 10 块就能搭成，最小尺寸是 4×5。",
+        "信标可以用铁块、金块、钻石块、绿宝石块或下界合金块激活。",
+        "僵尸村名可以被治愈成正常村民，前提是它没被杀死。",
+        "海绵能吸走附近的水，但湿海绵要放进熔炉烘干才能继续用。",
+        "末地城的潜影贝会在被杀死后掉落潜影壳。",
+        "按 F3 可以打开调试界面，看到坐标、区块和生物群系。",
+        "在 1.13 之后，水里的物品会慢慢飘向同一个地方。",
+    };
+
+    private int _tipIndex = -1;
+
+    private void SetDailyQuote()
+    {
+        if (QuoteText == null) return;
+        if (_tipIndex < 0)
+            _tipIndex = (int)(DateTime.Today.DayOfYear + DateTime.Today.Year) % Tips.Length;
+        QuoteText.Text = Tips[_tipIndex];
+    }
+
+    private void QuoteBox_Click(object sender, MouseButtonEventArgs e)
+    {
+        if (_editMode) return;   // 编辑模式下点击是拖拽，不切换
+        if (Tips.Length == 0) return;
+        // 换一条，不跟当前重复
+        int old = _tipIndex;
+        int next = old;
+        var rnd = new Random();
+        for (int i = 0; i < 8 && next == old; i++) next = rnd.Next(Tips.Length);
+        _tipIndex = next;
+        QuoteText.Text = Tips[_tipIndex];
+    }
+
+    // ===== 模组轮换 =====
+    private List<ModrinthService.ModInfo> _allMods = new();
+    private int _modBatch = 0;
+    private const int BatchSize = 6;
+    private System.Windows.Threading.DispatcherTimer? _modTimer;
+
+    private List<ModrinthService.ModInfo> CurrentBatch()
+    {
+        if (_allMods.Count <= BatchSize) return _allMods;
+        int total = (_allMods.Count + BatchSize - 1) / BatchSize;
+        int start = (_modBatch % total) * BatchSize;
+        return _allMods.Skip(start).Take(BatchSize).ToList();
+    }
+
+    private void StartModRotation()
+    {
+        _modTimer?.Stop();
+        _modTimer = new System.Windows.Threading.DispatcherTimer
+        {
+            Interval = TimeSpan.FromMinutes(2)
+        };
+        _modTimer.Tick += async (_, _) =>
+        {
+            if (_allMods.Count <= BatchSize) return;
+            _modBatch++;
+            await FadeSwapMods();
+        };
+        _modTimer.Start();
+    }
+
+    /// <summary>淡出 → 换内容 → 淡入</summary>
+    private async Task FadeSwapMods()
+    {
+        if (ModGrid == null) return;
+        var fadeOut = new DoubleAnimation(1, 0, TimeSpan.FromMilliseconds(220))
+        { EasingFunction = new CubicEase { EasingMode = EasingMode.EaseIn } };
+        ModGrid.BeginAnimation(UIElement.OpacityProperty, fadeOut);
+        await Task.Delay(230);
+
+        RenderRealMods(CurrentBatch());
+
+        var fadeIn = new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(320))
+        { EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut } };
+        ModGrid.BeginAnimation(UIElement.OpacityProperty, fadeIn);
+    }
+
+    // ===== 呼吸光效 =====
+    private void StartBreathing()
+    {
+        try
+        {
+            var glow = GoBox?.FindName("GoGlow") as System.Windows.Media.Effects.DropShadowEffect;
+            if (glow == null) return;
+            var sb = new Storyboard { RepeatBehavior = RepeatBehavior.Forever, AutoReverse = true };
+            var anim = new DoubleAnimation(0.25, 0.75, TimeSpan.FromMilliseconds(1600))
+            { EasingFunction = new SineEase { EasingMode = EasingMode.EaseInOut } };
+            Storyboard.SetTarget(anim, glow);
+            Storyboard.SetTargetProperty(anim, new PropertyPath("Opacity"));
+            sb.Children.Add(anim);
+            sb.Begin();
+        }
+        catch (Exception ex) { Log("呼吸光效失败: " + ex.Message); }
+    }
+
+    // ===== 启动淡入 =====
+    private void StartFadeIn()
+    {
+        try
+        {
+            Opacity = 0;
+            var anim = new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(420))
+            { EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut } };
+            BeginAnimation(OpacityProperty, anim);
+        }
+        catch { }
+    }
+
+    // ===== 版本列表 =====
+    private void LoadInstances()
+    {
+        var demo = new (string Name, string Sub, string Loader, string Java, string Mem, string State, string Ago, bool Ready)[]
+        {
+            ("1.21.4",  "正式版 · 2024-12-03",  "原版", "21", "4096", "已安装", "2 小时前", true),
+            ("1.21.1",  "正式版 · 2024-08-08",  "原版", "21", "4096", "已安装", "昨天",     true),
+            ("1.20.1",  "正式版 · 2023-06-12",  "原版", "17", "6144", "已安装", "3 天前",   true),
+            ("1.12.2",  "正式版 · 2017-09-18",  "原版", "8",  "3072", "已安装", "上周",     true),
+            ("26.3",    "正式版 · 2026-09-15",  "原版", "21", "4096", "未下载", "—",        false),
+            ("26.4-snapshot-10", "快照 · 2026-11", "原版", "21", "4096", "未下载", "—",     false),
+        };
+        if (InstanceList == null) return;
+        foreach (var d in demo) InstanceList.Children.Add(BuildRow(d));
+    }
+
+    private Border BuildRow((string Name, string Sub, string Loader, string Java, string Mem, string State, string Ago, bool Ready) d)
+    {
+        var row = new Border
+        {
+            Background = new SolidColorBrush(Color.FromArgb(0x99, 0x0D, 0x14, 0x1D)),
+            BorderBrush = new SolidColorBrush(Color.FromArgb(0x1F, 0xFF, 0xFF, 0xFF)),
+            BorderThickness = new Thickness(1),
+            CornerRadius = new CornerRadius(10),
+            Padding = new Thickness(12, 10, 12, 10),
+            Margin = new Thickness(0, 0, 0, 7),
+            Cursor = Cursors.Hand
+        };
+        var g = new Grid();
+        g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(36) });
+        g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        g.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+        var iconBox = new Border
+        {
+            Width = 36, Height = 36, CornerRadius = new CornerRadius(7),
+            Background = d.Ready
+                ? new LinearGradientBrush(Color.FromRgb(0x2A, 0x1F, 0x3D), Color.FromRgb(0x3D, 0x2A, 0x55), 45)
+                : new LinearGradientBrush(Color.FromRgb(0x1F, 0x3A, 0x2A), Color.FromRgb(0x28, 0x52, 0x3A), 45),
+            BorderBrush = d.Ready ? new SolidColorBrush(Color.FromRgb(0x4A, 0x35, 0x70)) : new SolidColorBrush(Color.FromRgb(0x2F, 0x6B, 0x45)),
+            BorderThickness = new Thickness(1)
+        };
+        iconBox.Child = new TextBlock
+        {
+            Text = d.Ready ? "⛏" : "◈", FontSize = 16,
+            HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center
+        };
+        Grid.SetColumn(iconBox, 0);
+        g.Children.Add(iconBox);
+
+        var info = new StackPanel { Margin = new Thickness(12, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center };
+        var title = new StackPanel { Orientation = Orientation.Horizontal };
+        title.Children.Add(new TextBlock { Text = d.Name, FontSize = 13, FontWeight = FontWeights.SemiBold });
+        title.Children.Add(new Border
+        {
+            Background = d.Ready ? new SolidColorBrush(Color.FromRgb(0x11, 0x30, 0x1E)) : new SolidColorBrush(Color.FromRgb(0x33, 0x2A, 0x11)),
+            CornerRadius = new CornerRadius(4), Padding = new Thickness(6, 1, 6, 1), Margin = new Thickness(8, 0, 0, 0),
+            Child = new TextBlock
+            {
+                Text = d.State, FontSize = 9.5,
+                Foreground = d.Ready ? new SolidColorBrush(Color.FromRgb(0x4A, 0xDE, 0x80)) : new SolidColorBrush(Color.FromRgb(0xFB, 0xBF, 0x24))
+            }
+        });
+        info.Children.Add(title);
+        info.Children.Add(new TextBlock
+        {
+            Text = $"{d.Loader} · Java {d.Java} · {d.Mem} MB",
+            FontSize = 10.5, Foreground = new SolidColorBrush(Color.FromRgb(0x66, 0x73, 0x8A)), Margin = new Thickness(0, 2, 0, 0)
+        });
+        Grid.SetColumn(info, 1);
+        g.Children.Add(info);
+
+        var state = new StackPanel { VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Right };
+        state.Children.Add(new TextBlock
+        {
+            Text = d.State, FontSize = 10.5, HorizontalAlignment = HorizontalAlignment.Right,
+            Foreground = d.Ready ? new SolidColorBrush(Color.FromRgb(0x4A, 0xDE, 0x80)) : new SolidColorBrush(Color.FromRgb(0xFB, 0xBF, 0x24))
+        });
+        state.Children.Add(new TextBlock
+        {
+            Text = d.Ago, FontSize = 10.5, Foreground = new SolidColorBrush(Color.FromRgb(0x66, 0x73, 0x8A)),
+            HorizontalAlignment = HorizontalAlignment.Right
+        });
+        Grid.SetColumn(state, 2);
+        g.Children.Add(state);
+
+        row.Child = g;
+        row.MouseEnter += (_, _) => row.Background = new SolidColorBrush(Color.FromArgb(0xCC, 0x14, 0x1D, 0x28));
+        row.MouseLeave += (_, _) => row.Background = new SolidColorBrush(Color.FromArgb(0x99, 0x0D, 0x14, 0x1D));
+        row.MouseLeftButtonUp += (_, _) => SwitchToVersion(d.Name, $"{d.Loader} · 上次游玩 {d.Ago}", d.Loader, d.Mem + " MB");
+        return row;
+    }
+
+    // ===== 推荐（新版横向卡片） =====
+    private async void BuildMods()
+    {
+        if (ModGrid == null) return;
+        // 先占位
+        ShowModSkeleton();
+        try
+        {
+            var real = await ModrinthService.GetPopularModsAsync(24);
+            if (real.Count > 0)
+            {
+                _allMods = real;
+                _modBatch = 0;
+                RenderRealMods(CurrentBatch());
+                StartModRotation();
+                return;
+            }
+        }
+        catch (Exception ex) { Log("模组加载失败: " + ex.Message); }
+        RenderFallbackMods();
+    }
+
+    private void ShowModSkeleton()
+    {
+        ModGrid.Children.Clear();
+        for (int i = 0; i < 6; i++)
+        {
+            var b = new Border
+            {
+                MinHeight = 64,
+                Background = new SolidColorBrush(Color.FromArgb(0x88, 0x0C, 0x12, 0x1B)),
+                BorderBrush = new SolidColorBrush(Color.FromArgb(0x18, 0xFF, 0xFF, 0xFF)),
+                BorderThickness = new Thickness(1),
+                CornerRadius = new CornerRadius(11),
+                Margin = new Thickness(0, 0, 8, 8),
+                Child = new TextBlock
+                {
+                    Text = "加载中…", FontSize = 10,
+                    Foreground = new SolidColorBrush(Color.FromRgb(0x59, 0x6C, 0x84)),
+                    HorizontalAlignment = HorizontalAlignment.Center,
+                    VerticalAlignment = VerticalAlignment.Center
+                }
+            };
+            ModGrid.Children.Add(b);
+        }
+    }
+
+    private void RenderRealMods(List<ModrinthService.ModInfo> mods)
+    {
+        ModGrid.Children.Clear();
+        var palette = new[] { "#4F8DF7", "#8B5CF6", "#22C55E", "#F59E0B", "#EC4899", "#14B8A6" };
+        int idx = 0;
+        foreach (var m in mods)
+        {
+            var c1 = palette[idx % palette.Length];
+            idx++;
+            var card = new Border
+            {
+                MinHeight = 64,
+                Background = new SolidColorBrush(Color.FromArgb(0xCC, 0x0C, 0x12, 0x1B)),
+                BorderBrush = new SolidColorBrush(Color.FromArgb(0x22, 0xFF, 0xFF, 0xFF)),
+                BorderThickness = new Thickness(1),
+                CornerRadius = new CornerRadius(11),
+                Padding = new Thickness(12, 10, 12, 10),
+                Margin = new Thickness(0, 0, 8, 8),
+                Cursor = Cursors.Hand
+            };
+            var g = new Grid();
+            g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(42) });
+            g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            g.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+            // 图标：有 icon_url 就用图片，否则用首字母色块
+            FrameworkElement icon;
+            if (!string.IsNullOrEmpty(m.IconUrl))
+            {
+                var img = new Border
+                {
+                    Width = 40, Height = 40, CornerRadius = new CornerRadius(10),
+                    Background = new SolidColorBrush(Color.FromRgb(0x1A, 0x22, 0x33)),
+                    VerticalAlignment = VerticalAlignment.Center, ClipToBounds = true
+                };
+                var image = new System.Windows.Controls.Image { Stretch = Stretch.UniformToFill };
+                try
+                {
+                    var bmp = new System.Windows.Media.Imaging.BitmapImage();
+                    bmp.BeginInit();
+                    bmp.UriSource = new Uri(m.IconUrl, UriKind.Absolute);
+                    bmp.CacheOption = System.Windows.Media.Imaging.BitmapCacheOption.OnLoad;
+                    bmp.CreateOptions = System.Windows.Media.Imaging.BitmapCreateOptions.IgnoreImageCache;
+                    bmp.EndInit();
+                    image.Source = bmp;
+                }
+                catch { }
+                img.Child = image;
+                icon = img;
+            }
+            else
+            {
+                var b = new Border
+                {
+                    Width = 40, Height = 40, CornerRadius = new CornerRadius(10),
+                    Background = (Brush)new BrushConverter().ConvertFromString(c1)!,
+                    VerticalAlignment = VerticalAlignment.Center
+                };
+                b.Child = new TextBlock
+                {
+                    Text = m.Title.Substring(0, 1), FontSize = 17, FontWeight = FontWeights.Bold,
+                    Foreground = Brushes.White,
+                    HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center
+                };
+                icon = b;
+            }
+            Grid.SetColumn(icon, 0);
+            g.Children.Add(icon);
+
+            var info = new StackPanel { Margin = new Thickness(11, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center };
+            var titleRow = new StackPanel { Orientation = Orientation.Horizontal };
+            titleRow.Children.Add(new TextBlock { Text = m.Title, FontSize = 12.5, FontWeight = FontWeights.SemiBold, Foreground = Brushes.White });
+            if (m.Categories.Length > 0)
+            {
+                titleRow.Children.Add(new Border
+                {
+                    Background = new SolidColorBrush(Color.FromArgb(0x33, 0xFF, 0xFF, 0xFF)),
+                    CornerRadius = new CornerRadius(4), Padding = new Thickness(5, 1, 5, 1),
+                    Margin = new Thickness(7, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center,
+                    Child = new TextBlock { Text = m.Categories[0], FontSize = 8.5, Foreground = new SolidColorBrush(Color.FromRgb(0xC8, 0xD6, 0xE6)) }
+                });
+            }
+            info.Children.Add(titleRow);
+            info.Children.Add(new TextBlock
+            {
+                Text = m.Description, FontSize = 9.5, Margin = new Thickness(0, 3, 0, 0),
+                Foreground = new SolidColorBrush(Color.FromRgb(0x9F, 0xB0, 0xC4)),
+                TextTrimming = TextTrimming.CharacterEllipsis
+            });
+            info.Children.Add(new TextBlock
+            {
+                Text = "下载 " + FormatNum(m.Downloads), FontSize = 8.5, Margin = new Thickness(0, 2, 0, 0),
+                Foreground = new SolidColorBrush(Color.FromRgb(0x6B, 0x7C, 0x92))
+            });
+            Grid.SetColumn(info, 1);
+            g.Children.Add(info);
+
+            var arrow = new TextBlock
+            {
+                Text = "›", FontSize = 16, Foreground = new SolidColorBrush(Color.FromRgb(0x59, 0x6C, 0x84)),
+                VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(6, 0, 0, 0), Opacity = 0.6
+            };
+            Grid.SetColumn(arrow, 2);
+            g.Children.Add(arrow);
+
+            card.Child = g;
+            card.MouseEnter += (_, _) =>
+            {
+                card.Background = new SolidColorBrush(Color.FromArgb(0xF0, 0x16, 0x22, 0x33));
+                card.BorderBrush = new SolidColorBrush(Color.FromArgb(0x55, 0x59, 0xA8, 0xFF));
+                arrow.Opacity = 1;
+            };
+            card.MouseLeave += (_, _) =>
+            {
+                card.Background = new SolidColorBrush(Color.FromArgb(0xCC, 0x0C, 0x12, 0x1B));
+                card.BorderBrush = new SolidColorBrush(Color.FromArgb(0x22, 0xFF, 0xFF, 0xFF));
+                arrow.Opacity = 0.6;
+            };
+            ModGrid.Children.Add(card);
+        }
+    }
+
+    private static string FormatNum(long n)
+    {
+        if (n >= 100_000_000) return (n / 100_000_000.0).ToString("0.#") + " 亿";
+        if (n >= 10_000) return (n / 10_000.0).ToString("0.#") + " 万";
+        return n.ToString();
+    }
+
+    private void RenderFallbackMods()
+    {
+        ModGrid.Children.Clear();
+        var mods = new (string Name, string Cat, string Desc, string Stat, string C1, string C2)[]
+        {
+            ("Sodium",      "性能优化", "大幅提升帧数，降低卡顿",   "4.2 亿", "#4F8DF7", "#2D5BC4"),
+            ("Iris Shaders","光影",    "兼容 OptiFine 光影包",    "1.8 亿", "#8B5CF6", "#5B3DC4"),
+            ("JEI",         "实用工具", "物品查询，配方大全",     "3.1 亿", "#22C55E", "#15803D"),
+            ("Xaero's Map", "地图",     "小地图 + 世界地图",       "2.6 亿", "#F59E0B", "#B45309"),
+            ("Create",      "机械",     "机械动力，齿轮与传送带",  "1.2 亿", "#EC4899", "#9D174D"),
+            ("Fabric API",  "前置库",   "绝大多数 Fabric 模组需要", "6.8 亿", "#14B8A6", "#0F766E"),
+        };
+        foreach (var (name, cat, desc, stat, c1, c2) in mods)
+        {
+            var card = new Border
+            {
+                MinHeight = 64,
+                Background = new SolidColorBrush(Color.FromArgb(0xCC, 0x0C, 0x12, 0x1B)),
+                BorderBrush = new SolidColorBrush(Color.FromArgb(0x22, 0xFF, 0xFF, 0xFF)),
+                BorderThickness = new Thickness(1),
+                CornerRadius = new CornerRadius(11),
+                Padding = new Thickness(12, 10, 12, 10),
+                Margin = new Thickness(0, 0, 8, 8),
+                Cursor = Cursors.Hand
+            };
+            var g = new Grid();
+            g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(42) });
+            g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            g.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+            var icon = new Border
+            {
+                Width = 40, Height = 40, CornerRadius = new CornerRadius(10),
+                Background = new LinearGradientBrush(
+                    (Color)ColorConverter.ConvertFromString(c1)!,
+                    (Color)ColorConverter.ConvertFromString(c2)!, 135),
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            icon.Child = new TextBlock
+            {
+                Text = name.Substring(0, 1), FontSize = 17, FontWeight = FontWeights.Bold, Foreground = Brushes.White,
+                HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center
+            };
+            Grid.SetColumn(icon, 0);
+            g.Children.Add(icon);
+
+            var info = new StackPanel { Margin = new Thickness(11, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center };
+            var titleRow = new StackPanel { Orientation = Orientation.Horizontal };
+            titleRow.Children.Add(new TextBlock { Text = name, FontSize = 12.5, FontWeight = FontWeights.SemiBold, Foreground = Brushes.White });
+            titleRow.Children.Add(new Border
+            {
+                Background = new SolidColorBrush(Color.FromArgb(0x33, 0xFF, 0xFF, 0xFF)),
+                CornerRadius = new CornerRadius(4), Padding = new Thickness(5, 1, 5, 1), Margin = new Thickness(7, 0, 0, 0),
+                VerticalAlignment = VerticalAlignment.Center,
+                Child = new TextBlock { Text = cat, FontSize = 8.5, Foreground = new SolidColorBrush(Color.FromRgb(0xC8, 0xD6, 0xE6)) }
+            });
+            info.Children.Add(titleRow);
+            info.Children.Add(new TextBlock
+            {
+                Text = desc, FontSize = 9.5, Margin = new Thickness(0, 3, 0, 0),
+                Foreground = new SolidColorBrush(Color.FromRgb(0x9F, 0xB0, 0xC4)),
+                TextTrimming = TextTrimming.CharacterEllipsis
+            });
+            info.Children.Add(new TextBlock
+            {
+                Text = "下载 " + stat, FontSize = 8.5, Margin = new Thickness(0, 2, 0, 0),
+                Foreground = new SolidColorBrush(Color.FromRgb(0x6B, 0x7C, 0x92))
+            });
+            Grid.SetColumn(info, 1);
+            g.Children.Add(info);
+
+            var arrow = new TextBlock
+            {
+                Text = "›", FontSize = 16, Foreground = new SolidColorBrush(Color.FromRgb(0x59, 0x6C, 0x84)),
+                VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(6, 0, 0, 0), Opacity = 0.6
+            };
+            Grid.SetColumn(arrow, 2);
+            g.Children.Add(arrow);
+
+            card.Child = g;
+            card.MouseEnter += (_, _) =>
+            {
+                card.Background = new SolidColorBrush(Color.FromArgb(0xF0, 0x16, 0x22, 0x33));
+                card.BorderBrush = new SolidColorBrush(Color.FromArgb(0x55, 0x59, 0xA8, 0xFF));
+                arrow.Opacity = 1;
+            };
+            card.MouseLeave += (_, _) =>
+            {
+                card.Background = new SolidColorBrush(Color.FromArgb(0xCC, 0x0C, 0x12, 0x1B));
+                card.BorderBrush = new SolidColorBrush(Color.FromArgb(0x22, 0xFF, 0xFF, 0xFF));
+                arrow.Opacity = 0.6;
+            };
+            ModGrid.Children.Add(card);
+        }
+    }
+
+    // ===== 历史游玩 =====
+    private void BuildHistory()
+    {
+        if (HistoryList == null) return;
+        var hist = new (string Ver, string Ago)[]
+        {
+            ("1.21.4", "2 小时前"),
+            ("1.20.1", "昨天"),
+            ("1.12.2", "3 天前"),
+            ("1.21.1", "上周"),
+        };
+        foreach (var (ver, ago) in hist)
+        {
+            var row = new Border
+            {
+                Height = 34,
+                Background = new SolidColorBrush(Color.FromArgb(0x26, 0xFF, 0xFF, 0xFF)),
+                CornerRadius = new CornerRadius(7),
+                Margin = new Thickness(0, 0, 0, 5),
+                Padding = new Thickness(10, 0, 10, 0),
+                Cursor = Cursors.Hand
+            };
+            var g = new Grid();
+            g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            g.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            g.Children.Add(new TextBlock { Text = ver, FontSize = 11, FontWeight = FontWeights.SemiBold, Foreground = Brushes.White, VerticalAlignment = VerticalAlignment.Center });
+            var agoText = new TextBlock { Text = ago, FontSize = 9, Foreground = new SolidColorBrush(Color.FromRgb(0x8F, 0xA0, 0xB8)), VerticalAlignment = VerticalAlignment.Center };
+            Grid.SetColumn(agoText, 1);
+            g.Children.Add(agoText);
+            row.Child = g;
+            HistoryList.Children.Add(row);
+        }
+    }
+
+    // ===== 切换版本转场 =====
+    private async void SwitchToVersion(string name, string sub, string loader, string mem)
+    {
+        var panel = DetailHost;
+        if (panel == null) return;
+        var fadeOut = new DoubleAnimation(1, 0, TimeSpan.FromMilliseconds(110));
+        panel.BeginAnimation(UIElement.OpacityProperty, fadeOut);
+        await Task.Delay(110);
+        DetailName.Text = name;
+        DetailSub.Text = sub;
+        if (DetailLoader != null) DetailLoader.Text = loader;
+        if (DetailMem != null) DetailMem.Text = mem;
+        if (panel.RenderTransform is TranslateTransform tt)
+        {
+            var slide = new DoubleAnimation(12, 0, TimeSpan.FromMilliseconds(260))
+            { EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut } };
+            tt.BeginAnimation(TranslateTransform.YProperty, slide);
+        }
+        var fadeIn = new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(260))
+        { EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut } };
+        panel.BeginAnimation(UIElement.OpacityProperty, fadeIn);
+    }
+
+    // ===== 导航 =====
+    private void NavHome_Click(object sender, RoutedEventArgs e)
+    {
+        HomeView.Visibility = Visibility.Visible;
+        VersionsView.Visibility = Visibility.Collapsed;
+        DetailHost.Visibility = Visibility.Collapsed;
+        if (NavPanel != null) NavPanel.Visibility = Visibility.Collapsed;
+        if (NavColumn != null) NavColumn.Width = new GridLength(0);
+        if (DetailColumn != null) DetailColumn.Width = new GridLength(0);
+        NavHome.Background = new SolidColorBrush(Color.FromArgb(0x4D, 0x3B, 0x82, 0xF6));
+        NavHome.Foreground = Brushes.White;
+        NavVersions.Background = Brushes.Transparent;
+        NavVersions.Foreground = new SolidColorBrush(Color.FromRgb(0xD6, 0xE2, 0xF0));
+    }
+
+    private void NavVersions_Click(object sender, RoutedEventArgs e)
+    {
+        HomeView.Visibility = Visibility.Collapsed;
+        VersionsView.Visibility = Visibility.Visible;
+        DetailHost.Visibility = Visibility.Visible;
+        if (NavPanel != null) NavPanel.Visibility = Visibility.Visible;
+        if (NavColumn != null) NavColumn.Width = new GridLength(176);
+        if (DetailColumn != null) DetailColumn.Width = new GridLength(278);
+        NavVersions.Background = new SolidColorBrush(Color.FromArgb(0x4D, 0x3B, 0x82, 0xF6));
+        NavVersions.Foreground = Brushes.White;
+        NavHome.Background = Brushes.Transparent;
+        NavHome.Foreground = new SolidColorBrush(Color.FromRgb(0xD6, 0xE2, 0xF0));
+    }
+
+    private void StartGame_Click(object sender, RoutedEventArgs e) => NavVersions_Click(sender, e);
+
+    // ===== 登录 =====
+    private bool _loggedIn = false;
+
+    private void Account_Click(object sender, MouseButtonEventArgs e)
+    {
+        if (_loggedIn)
+        {
+            AccountName.Text = "未登录";
+            AccountHint.Text = "点击登录微软账号";
+            AvatarText.Text = "?";
+            if (AccountName2 != null) AccountName2.Text = "未登录";
+            if (AccountHint2 != null) AccountHint2.Text = "点击登录微软账号";
+            if (MsLogo != null) MsLogo.Visibility = Visibility.Visible;
+            if (AvatarText2 != null) { AvatarText2.Text = ""; AvatarText2.Visibility = Visibility.Collapsed; }
+            if (TitleText != null) TitleText.Text = "欢迎回来";
+            _loggedIn = false;
+            return;
+        }
+        var win = new LoginWindow { Owner = this };
+        var ok = win.ShowDialog();
+        if (ok == true)
+        {
+            AccountName.Text = "已登录";
+            AccountHint.Text = "微软账号 · 正版";
+            AvatarText.Text = "✓";
+            if (AccountName2 != null) AccountName2.Text = "穗玉";
+            if (AccountHint2 != null) AccountHint2.Text = "微软账号 · 正版";
+            if (MsLogo != null) MsLogo.Visibility = Visibility.Collapsed;
+            if (AvatarText2 != null) { AvatarText2.Text = "穗"; AvatarText2.Visibility = Visibility.Visible; }
+            if (TitleText != null) TitleText.Text = "欢迎回来，" + (string.IsNullOrEmpty(win.AccountName) ? "玩家" : win.AccountName);
+            _loggedIn = true;
+        }
+    }
+
+    // ===== 启动动画 =====
+    private bool _launching = false;
+
+    private async void Launch_Click(object sender, RoutedEventArgs e)
+    {
+        if (_launching) return;
+        _launching = true;
+        LaunchBtn.IsEnabled = false;
+        var old = LaunchBtn.Content;
+        LaunchBtn.Content = "启 动 中 …";
+        LaunchProgress.Visibility = Visibility.Visible;
+        ProgressText.Text = "正在检查 Java…";
+        var steps = new (string Text, int To)[]
+        {
+            ("正在检查 Java…", 22),
+            ("正在校验资源文件…", 48),
+            ("正在加载 Fabric…", 75),
+            ("正在启动游戏…", 100),
+        };
+        foreach (var (text, to) in steps)
+        {
+            ProgressText.Text = text;
+            var anim = new DoubleAnimation(ProgressFill.Width, to, TimeSpan.FromMilliseconds(420))
+            { EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut } };
+            ProgressFill.BeginAnimation(FrameworkElement.WidthProperty, anim);
+            await Task.Delay(450);
+        }
+        ProgressText.Text = "游戏已启动";
+        await Task.Delay(700);
+        ProgressFill.BeginAnimation(FrameworkElement.WidthProperty, null);
+        ProgressFill.Width = 0;
+        LaunchProgress.Visibility = Visibility.Collapsed;
+        LaunchBtn.Content = old;
+        LaunchBtn.IsEnabled = true;
+        _launching = false;
+    }
+
+    // ===== 布局编辑 =====
+    private bool _editMode = false;
+    private readonly Dictionary<FrameworkElement, Thumb> _handles = new();
+    private FrameworkElement? _dragEl;
+    private Point _dragStart;
+    private double _startLeft, _startTop;
+
+    private IEnumerable<(FrameworkElement El, string Id)> LayoutTargets()
+    {
+        if (TitleBox != null) yield return (TitleBox, "title");
+        if (RecBox != null) yield return (RecBox, "rec");
+        if (AccountBox2 != null) yield return (AccountBox2, "login");
+        if (GoBox != null) yield return (GoBox, "go");
+        if (QuoteBox != null) yield return (QuoteBox, "quote");
+        if (SidePanel != null) yield return (SidePanel, "side");
+    }
+
+    private void ApplySavedLayout()
+    {
+        var saved = LayoutService.Load();
+        if (saved.Count == 0) return;
+        foreach (var (el, id) in LayoutTargets())
+            if (saved.TryGetValue(id, out var box) && el.Parent is Canvas)
+                LayoutService.Apply(el, box);
+    }
+
+    private void SaveCurrentLayout()
+    {
+        var list = new List<LayoutService.Box>();
+        foreach (var (el, id) in LayoutTargets())
+        {
+            double x = el.Parent is Canvas ? Canvas.GetLeft(el) : 0;
+            double y = el.Parent is Canvas ? Canvas.GetTop(el) : 0;
+            if (double.IsNaN(x)) x = 0;
+            if (double.IsNaN(y)) y = 0;
+            list.Add(new LayoutService.Box(id, Math.Round(x), Math.Round(y), Math.Round(el.ActualWidth), Math.Round(el.ActualHeight)));
+        }
+        LayoutService.Save(list);
+        Log("布局已保存: " + list.Count + " 项");
+    }
+
+    private void ToggleEditMode()
+    {
+        _editMode = !_editMode;
+        var targets = LayoutTargets().ToList();
+        foreach (var (el, id) in targets)
+        {
+            if (_editMode)
+            {
+                el.Opacity = 0.92;
+                el.Cursor = Cursors.SizeAll;
+                el.PreviewMouseLeftButtonDown += EditMouseDown;
+                el.PreviewMouseMove += EditMouseMove;
+                el.PreviewMouseLeftButtonUp += EditMouseUp;
+                if (el is Border b) b.BorderBrush = Brushes.DeepSkyBlue;
+                AddResizeHandle(el);
+            }
+            else
+            {
+                el.Opacity = 1;
+                el.Cursor = Cursors.Arrow;
+                el.PreviewMouseLeftButtonDown -= EditMouseDown;
+                el.PreviewMouseMove -= EditMouseMove;
+                el.PreviewMouseLeftButtonUp -= EditMouseUp;
+                RemoveResizeHandle(el);
+            }
+        }
+        if (!_editMode) SaveCurrentLayout();
+        Log(_editMode ? "编辑模式：拖动组件调整位置，Ctrl+E 退出并保存" : "已退出编辑模式，布局已保存");
+    }
+
+    private void AddResizeHandle(FrameworkElement target)
+    {
+        if (_handles.ContainsKey(target) || HomeCanvas == null) return;
+        var t = new Thumb
+        {
+            Width = 13, Height = 13,
+            Background = new SolidColorBrush(Color.FromRgb(0x3B, 0x82, 0xF6)),
+            BorderBrush = Brushes.White, BorderThickness = new Thickness(1),
+            Cursor = Cursors.SizeNWSE
+        };
+        double x = Canvas.GetLeft(target); if (double.IsNaN(x)) x = 0;
+        double y = Canvas.GetTop(target); if (double.IsNaN(y)) y = 0;
+        Canvas.SetLeft(t, x + target.Width - 7);
+        Canvas.SetTop(t, y + target.Height - 7);
+        Canvas.SetZIndex(t, 100);
+        t.DragDelta += (_, e) =>
+        {
+            target.Width = Math.Max(60, target.Width + e.HorizontalChange);
+            target.Height = Math.Max(30, target.Height + e.VerticalChange);
+            Canvas.SetLeft(t, Canvas.GetLeft(target) + target.Width - 7);
+            Canvas.SetTop(t, Canvas.GetTop(target) + target.Height - 7);
+        };
+        HomeCanvas.Children.Add(t);
+        _handles[target] = t;
+    }
+
+    private void RemoveResizeHandle(FrameworkElement target)
+    {
+        if (_handles.TryGetValue(target, out var t))
+        {
+            HomeCanvas.Children.Remove(t);
+            _handles.Remove(target);
+        }
+    }
+
+    private void EditMouseDown(object sender, MouseButtonEventArgs e)
+    {
+        if (!_editMode || sender is not FrameworkElement el) return;
+        _dragEl = el;
+        _dragStart = e.GetPosition(this);
+        _startLeft = Canvas.GetLeft(el); if (double.IsNaN(_startLeft)) _startLeft = 0;
+        _startTop = Canvas.GetTop(el); if (double.IsNaN(_startTop)) _startTop = 0;
+        el.CaptureMouse();
+        e.Handled = true;
+    }
+
+    private void EditMouseMove(object sender, MouseEventArgs e)
+    {
+        if (!_editMode || _dragEl == null) return;
+        var p = e.GetPosition(this);
+        if (_dragEl.Parent is Canvas)
+        {
+            Canvas.SetLeft(_dragEl, _startLeft + (p.X - _dragStart.X));
+            Canvas.SetTop(_dragEl, _startTop + (p.Y - _dragStart.Y));
+        }
+    }
+
+    private void EditMouseUp(object sender, MouseButtonEventArgs e)
+    {
+        if (_dragEl != null) { _dragEl.ReleaseMouseCapture(); _dragEl = null; }
+    }
+
+    // ===== 窗口按钮 =====
+    private void TitleBar_MouseDown(object sender, MouseButtonEventArgs e)
+    {
+        if (e.ClickCount == 2) { ToggleMax(); return; }
+        if (e.LeftButton == MouseButtonState.Pressed) DragMove();
+    }
+
+    private void Min_Click(object sender, RoutedEventArgs e) => WindowState = WindowState.Minimized;
+    private void Max_Click(object sender, RoutedEventArgs e) => ToggleMax();
+    private void Close_Click(object sender, RoutedEventArgs e) => Close();
+    private void ToggleMax() => WindowState = WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized;
+}

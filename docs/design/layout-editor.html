@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="zh-CN"><head><meta charset="utf-8">
+<title>布局编辑器</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#0a0d12;color:#e6edf7;font-family:"Microsoft YaHei",sans-serif;padding:16px}
+.toolbar{display:flex;align-items:center;gap:12px;margin-bottom:12px}
+.toolbar h2{font-size:15px}
+button{background:#2563eb;border:none;color:#fff;padding:8px 16px;border-radius:7px;font-size:12px;cursor:pointer}
+button.ghost{background:#1a2230;border:1px solid #2a3448}
+#canvas{position:relative;width:1150px;height:700px;border-radius:12px;overflow:hidden;
+  background:url("assets/hero.jpg") center/cover no-repeat;border:1px solid #2a3448}
+#canvas:after{content:"";position:absolute;inset:0;background:rgba(10,14,20,.55);pointer-events:none}
+.block{position:absolute;border:1px dashed rgba(120,180,255,.7);border-radius:10px;
+  background:rgba(30,45,70,.55);backdrop-filter:blur(4px);cursor:grab;user-select:none;
+  display:flex;align-items:center;justify-content:center;font-size:12px;color:#cfe0ff;z-index:2;
+  box-shadow:0 4px 16px rgba(0,0,0,.35)}
+.block:active{cursor:grabbing}
+.block .label{position:absolute;top:4px;left:8px;font-size:10px;color:#8fb4ff;opacity:.9}
+.block .rz{position:absolute;right:-1px;bottom:-1px;width:14px;height:14px;background:#3b82f6;
+  border-radius:3px;cursor:nwse-resize;opacity:.8}
+#out{margin-top:12px;width:100%;height:180px;background:#0e141c;color:#8fd4a0;border:1px solid #2a3448;
+  border-radius:8px;padding:10px;font-family:Consolas,monospace;font-size:11px}
+</style></head><body>
+<div class="toolbar">
+  <h2>拖拽布局编辑器</h2>
+  <button onclick="exportLayout()">导出布局</button>
+  <button class="ghost" onclick="resetLayout()">重置</button>
+  <span style="font-size:11px;color:#7a8b9f">拖动块移动 · 右下角小方块缩放</span>
+</div>
+<div id="canvas"></div>
+<textarea id="out" readonly placeholder="拖好后点「导出布局」，把这里的内容复制给我"></textarea>
+
+<script>
+const DEFAULT = [
+  { id: 'title',  label: '欢迎回来 + 副标题', x: 14,  y: 40,  w: 320, h: 90  },
+  { id: 'rec',    label: '推荐区',             x: 14,  y: 150, w: 880, h: 400 },
+  { id: 'login',  label: '登录条',             x: 14,  y: 565, w: 880, h: 46  },
+  { id: 'go',     label: "Let's Go 按钮",      x: 14,  y: 625, w: 880, h: 54  },
+  { id: 'side',   label: '上次游玩 + 历史',     x: 910, y: 150, w: 226, h: 529 },
+];
+const canvas = document.getElementById('canvas');
+let blocks = [];
+
+function render() {
+  canvas.innerHTML = '';
+  blocks.forEach((b, i) => {
+    const el = document.createElement('div');
+    el.className = 'block';
+    el.style.left = b.x + 'px';
+    el.style.top = b.y + 'px';
+    el.style.width = b.w + 'px';
+    el.style.height = b.h + 'px';
+    el.innerHTML = '<span class="label">' + b.id + ' · ' + b.label + '</span>' + b.id;
+    const rz = document.createElement('div');
+    rz.className = 'rz';
+    el.appendChild(rz);
+
+    // 拖动
+    let sx, sy, ox, oy, dragging = false;
+    el.addEventListener('mousedown', e => {
+      if (e.target === rz) return;
+      dragging = true;
+      sx = e.clientX; sy = e.clientY; ox = b.x; oy = b.y;
+      e.preventDefault();
+    });
+    window.addEventListener('mousemove', e => {
+      if (!dragging) return;
+      b.x = Math.max(0, ox + e.clientX - sx);
+      b.y = Math.max(0, oy + e.clientY - sy);
+      el.style.left = b.x + 'px'; el.style.top = b.y + 'px';
+    });
+    window.addEventListener('mouseup', () => { dragging = false; });
+
+    // 缩放
+    let rsz = false, rw, rh, rx, ry;
+    rz.addEventListener('mousedown', e => {
+      rsz = true; rx = e.clientX; ry = e.clientY; rw = b.w; rh = b.h;
+      e.stopPropagation(); e.preventDefault();
+    });
+    window.addEventListener('mousemove', e => {
+      if (!rsz) return;
+      b.w = Math.max(60, rw + e.clientX - rx);
+      b.h = Math.max(30, rh + e.clientY - ry);
+      el.style.width = b.w + 'px'; el.style.height = b.h + 'px';
+    });
+    window.addEventListener('mouseup', () => { rsz = false; });
+
+    canvas.appendChild(el);
+  });
+}
+
+function exportLayout() {
+  const data = blocks.map(b => ({ id: b.id, x: Math.round(b.x), y: Math.round(b.y), w: Math.round(b.w), h: Math.round(b.h) }));
+  const json = JSON.stringify(data, null, 2);
+  document.getElementById('out').value = json;
+  // 同时下载成文件
+  const blob = new Blob([json], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'layout.json';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+}
+function resetLayout() { blocks = JSON.parse(JSON.stringify(DEFAULT)); render(); }
+
+blocks = JSON.parse(JSON.stringify(DEFAULT));
+render();
+</script>
+</body></html>

@@ -1,0 +1,31 @@
+# 编译产物
+bin/
+obj/
+dist/
+dist-setup/
+_pkg/
+
+# 单文件发布产物（体积大，用 Release 发布）
+Hearth.exe
+HearthSetup.exe
+
+# 游戏数据（几十 GB）
+.minecraft/
+
+# Visual Studio / Rider
+.vs/
+.idea/
+*.user
+*.suo
+
+# 临时文件
+*.log
+*.tmp
+_tmp/
+*.zip
+!*.zip.placeholder
+
+# 系统
+Thumbs.db
+desktop.ini
+.DS_Store

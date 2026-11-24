@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net9.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="..\src\InstallService.cs" />
+    <Compile Include="..\src\VersionService.cs" />
+    <Compile Include="..\src\LaunchService.cs" />
+    <Compile Include="..\src\LoaderService.cs" />
+    <Compile Include="..\src\JavaService.cs" />
+    <Compile Include="..\src\PackService.cs" />
+    <Compile Include="..\src\VersionMeta.cs" />
+    <Compile Include="..\src\GameFolderService.cs" />
+    <Compile Include="..\src\AppSettings.cs" />
+    <Compile Include="..\src\MicrosoftAuth.cs" />
+    <Compile Include="..\src\GameOptions.cs" />
+  </ItemGroup>
+</Project>

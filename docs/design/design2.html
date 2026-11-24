@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="zh-CN"><head><meta charset="utf-8">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{width:1100px;height:700px;font-family:"Microsoft YaHei",sans-serif;background:#f4f6fb;color:#1a2233;overflow:hidden}
+.top{height:60px;background:#fff;border-bottom:1px solid #e6eaf2;display:flex;align-items:center;padding:0 26px;gap:26px}
+.logo{font-size:17px;font-weight:800;color:#2563eb}
+.logo span{color:#94a3b8;font-weight:400;font-size:12px;margin-left:6px}
+.menu{display:flex;gap:4px;margin-left:20px}
+.menu a{padding:7px 15px;border-radius:8px;font-size:13px;color:#5b6b82;cursor:pointer}
+.menu a.on{background:#eef4ff;color:#2563eb;font-weight:600}
+.menu a:hover{background:#f1f5fb}
+.right{margin-left:auto;display:flex;gap:10px;align-items:center}
+.icon{width:34px;height:34px;border-radius:9px;background:#f1f5fb;display:flex;align-items:center;justify-content:center;font-size:15px;cursor:pointer}
+.avatar{width:34px;height:34px;border-radius:9px;background:linear-gradient(135deg,#60a5fa,#2563eb);display:flex;align-items:center;justify-content:center;color:#fff;font-size:13px;font-weight:700}
+.body{display:flex;height:640px}
+.list{width:290px;background:#fff;border-right:1px solid #e6eaf2;padding:16px 12px;overflow:auto}
+.search{width:100%;padding:8px 12px;border:1px solid #e2e8f0;border-radius:9px;font-size:12.5px;margin-bottom:14px;outline:none;background:#f8fafc}
+.item{padding:11px 12px;border-radius:10px;margin-bottom:4px;cursor:pointer;border:1px solid transparent}
+.item:hover{background:#f8fafc}
+.item.on{background:#eef4ff;border-color:#bfd4ff}
+.item .n{font-size:13.5px;font-weight:600;margin-bottom:3px;display:flex;justify-content:space-between}
+.item .s{font-size:11px;color:#8b98ab}
+.dot{width:6px;height:6px;border-radius:50%;background:#22c55e;display:inline-block;margin-right:5px}
+.dot.g{background:#cbd5e1}
+.detail{flex:1;padding:22px 26px;overflow:auto}
+.h1{font-size:19px;font-weight:700;margin-bottom:4px}
+.sub{font-size:12px;color:#8b98ab;margin-bottom:18px}
+.panel{background:#fff;border:1px solid #e6eaf2;border-radius:14px;padding:18px 20px;margin-bottom:14px}
+.panel h3{font-size:13px;color:#5b6b82;margin-bottom:12px;font-weight:600}
+.kv{display:flex;justify-content:space-between;font-size:12.5px;padding:7px 0;border-bottom:1px dashed #eef2f7}
+.kv:last-child{border:none}
+.kv span:first-child{color:#8b98ab}
+.big{background:linear-gradient(135deg,#2563eb,#3b82f6);color:#fff;border:none;width:100%;padding:14px;border-radius:12px;font-size:15px;font-weight:700;cursor:pointer;box-shadow:0 6px 20px rgba(37,99,235,.25)}
+.mini{display:flex;gap:10px;margin-top:10px}
+.mini button{flex:1;padding:9px;border:1px solid #e2e8f0;background:#fff;border-radius:9px;font-size:12px;color:#5b6b82;cursor:pointer}
+</style></head><body>
+<div class="top">
+  <div class="logo">方块启动器<span>v0.1</span></div>
+  <div class="menu"><a class="on">游戏库</a><a>下载</a><a>模组</a><a>设置</a></div>
+  <div class="right"><div class="icon">🔔</div><div class="icon">⚙</div><div class="avatar">穗</div></div>
+</div>
+<div class="body">
+  <div class="list">
+    <input class="search" placeholder="搜索版本 / 实例…">
+    <div class="item on"><div class="n">1.21.4 生存服 <span style="color:#22c55e;font-size:11px">就绪</span></div><div class="s"><span class="dot"></span>Fabric 0.16.9 · Java 21</div></div>
+    <div class="item"><div class="n">1.20.1 整合包 <span style="color:#22c55e;font-size:11px">就绪</span></div><div class="s"><span class="dot"></span>Forge 47.3.0 · Java 17</div></div>
+    <div class="item"><div class="n">26.3 最新版 <span style="color:#f59e0b;font-size:11px">未下载</span></div><div class="s"><span class="dot g"></span>原版 · 需下载</div></div>
+    <div class="item"><div class="n">1.12.2 怀旧 <span style="color:#22c55e;font-size:11px">就绪</span></div><div class="s"><span class="dot"></span>Forge 14.23.5 · Java 8</div></div>
+  </div>
+  <div class="detail">
+    <div class="h1">1.21.4 生存服</div>
+    <div class="sub">Fabric 0.16.9 · 上次游玩 2 小时前</div>
+    <div style="display:flex;gap:14px">
+      <div style="flex:1.4">
+        <div class="panel">
+          <h3>启动配置</h3>
+          <div class="kv"><span>游戏版本</span><b>1.21.4</b></div>
+          <div class="kv"><span>加载器</span><b>Fabric 0.16.9</b></div>
+          <div class="kv"><span>Java</span><b>21.0.5 (64-bit)</b></div>
+          <div class="kv"><span>内存分配</span><b>4096 MB</b></div>
+          <div class="kv"><span>游戏目录</span><b>.minecraft/versions/1.21.4</b></div>
+        </div>
+      </div>
+      <div style="flex:1">
+        <div class="panel" style="text-align:center;padding-top:22px">
+          <div style="width:76px;height:76px;margin:0 auto 14px;border-radius:20px;background:linear-gradient(135deg,#60a5fa,#2563eb);display:flex;align-items:center;justify-content:center;font-size:34px">⛏</div>
+          <button class="big">启动游戏</button>
+          <div class="mini"><button>打开目录</button><button>编辑</button></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div></body></html>

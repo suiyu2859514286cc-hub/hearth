@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="zh-CN"><head><meta charset="utf-8">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{width:1180px;height:730px;font-family:"Microsoft YaHei UI","Microsoft YaHei",sans-serif;background:#12151c;color:#dbe3ee;overflow:hidden}
+.shell{display:flex;flex-direction:column;height:100%}
+.tbar{height:40px;background:#0b0e14;display:flex;align-items:center;padding-left:14px;border-bottom:1px solid #1c2130}
+.tbar .logo{font-size:13px;font-weight:700;color:#79a9ff}
+.tbar .logo i{font-style:normal;color:#4a5568;font-weight:400;font-size:10.5px;margin-left:8px}
+.tbar .win{margin-left:auto;display:flex;height:100%}
+.tbar .win div{width:46px;display:flex;align-items:center;justify-content:center;font-size:12px;color:#8b97ab;cursor:pointer}
+.tbar .win div:hover{background:#1a1f2b;color:#fff}
+.tbar .win .x:hover{background:#e81123}
+.body{flex:1;display:flex;overflow:hidden}
+.side{width:178px;background:#0e1219;border-right:1px solid #1c2130;display:flex;flex-direction:column;padding:9px 7px}
+.nav{display:flex;flex-direction:column;gap:1px}
+.nav a{display:flex;align-items:center;gap:10px;padding:9px 11px;border-radius:6px;font-size:12.5px;color:#8b97ab;cursor:pointer;position:relative}
+.nav a:hover{background:#161c26;color:#c9d5e6}
+.nav a.on{background:#182031;color:#79a9ff;font-weight:600}
+.nav a.on:before{content:"";position:absolute;left:0;top:8px;bottom:8px;width:3px;border-radius:2px;background:#3b82f6}
+.nav .ico{width:16px;text-align:center;font-size:13px}
+.sep{height:1px;background:#1c2130;margin:9px 5px}
+.tip{margin-top:auto;padding:9px 11px;font-size:10px;color:#48536a;line-height:1.7;border-top:1px solid #1c2130}
+.main{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0}
+.mhead{height:48px;display:flex;align-items:center;padding:0 16px;gap:9px;border-bottom:1px solid #1c2130;background:#0f1319}
+.mhead .t{font-size:14px;font-weight:700}
+.mhead .cnt{font-size:10.5px;color:#5a6478;background:#191e29;padding:2px 7px;border-radius:9px}
+.mhead .sp{margin-left:auto;display:flex;gap:7px}
+.btn{background:#1f2633;border:1px solid #2b3345;color:#c9d5e6;padding:6px 13px;border-radius:6px;font-size:11.5px;cursor:pointer}
+.btn:hover{border-color:#3b82f6;color:#79a9ff}
+.btn.pri{background:linear-gradient(180deg,#3b82f6,#2563eb);border-color:#2563eb;color:#fff;font-weight:600}
+.content{flex:1;display:flex;overflow:hidden}
+.list{flex:1;overflow:auto;padding:9px 11px;min-width:0}
+.row{display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:8px;margin-bottom:4px;cursor:pointer;border:1px solid transparent;background:#131821}
+.row:hover{background:#171e29;border-color:#222b3b}
+.row.on{background:#18222f;border-color:#2d4870}
+.ava{width:36px;height:36px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;background:#1c2432;border:1px solid #253044}
+.ava.f{background:linear-gradient(135deg,#2a1f3d,#3d2a55);border-color:#4a3570}
+.ava.van{background:linear-gradient(135deg,#1f3a2a,#28523a);border-color:#2f6b45}
+.info{flex:1;min-width:0}
+.info .n{font-size:13px;font-weight:600;margin-bottom:2px;display:flex;align-items:center;gap:7px}
+.info .n em{font-style:normal;font-size:9.5px;padding:1px 6px;border-radius:4px;font-weight:500}
+.e-ready{background:#11301e;color:#4ade80}
+.e-new{background:#291a33;color:#c084fc}
+.e-dl{background:#332a11;color:#fbbf24}
+.info .m{font-size:10.5px;color:#66738a;display:flex;gap:10px}
+.info .m b{color:#8b97ab;font-weight:500}
+.state{text-align:right;font-size:10.5px;color:#66738a;line-height:1.55;flex-shrink:0}
+.state .go{color:#4ade80}
+/* 右侧详情 */
+.detail{width:300px;background:#0e1219;border-left:1px solid #1c2130;display:flex;flex-direction:column;padding:16px 15px;gap:13px;flex-shrink:0}
+.hero{text-align:center}
+.hero .big{width:72px;height:72px;border-radius:16px;margin:0 auto 11px;display:flex;align-items:center;justify-content:center;font-size:32px;background:linear-gradient(135deg,#2a1f3d,#3d2a55);border:1px solid #4a3570;box-shadow:0 6px 24px rgba(124,58,237,.25)}
+.hero .nm{font-size:15px;font-weight:700;margin-bottom:3px}
+.hero .sm{font-size:10.5px;color:#66738a}
+.launch{background:linear-gradient(180deg,#22c55e,#16a34a);border:1px solid #16a34a;color:#fff;padding:12px;border-radius:9px;font-size:14px;font-weight:800;letter-spacing:1.5px;cursor:pointer;box-shadow:0 4px 18px rgba(34,197,94,.3)}
+.launch:hover{filter:brightness(1.08)}
+.duo{display:flex;gap:7px}
+.duo button{flex:1;background:#161c26;border:1px solid #222b3b;color:#8b97ab;padding:7px;border-radius:6px;font-size:11px;cursor:pointer}
+.duo button:hover{color:#79a9ff;border-color:#3b82f6}
+.box{background:#131821;border:1px solid #1c2130;border-radius:8px;padding:11px 12px}
+.box h4{font-size:10.5px;color:#5a6478;font-weight:600;margin-bottom:9px;letter-spacing:.5px}
+.kv{display:flex;justify-content:space-between;font-size:11px;padding:4px 0}
+.kv span{color:#66738a}
+.kv b{color:#b9c6d9;font-weight:600}
+.sbar{height:28px;background:#0b0e14;border-top:1px solid #1c2130;display:flex;align-items:center;padding:0 13px;font-size:10px;color:#57627a;gap:14px}
+.sbar .dot{width:5px;height:5px;border-radius:50%;background:#4ade80;display:inline-block;margin-right:5px}
+.sbar .r{margin-left:auto;display:flex;gap:14px}
+.prog{width:110px;height:3px;background:#191e29;border-radius:2px;overflow:hidden}
+.prog i{display:block;height:100%;width:38%;background:linear-gradient(90deg,#3b82f6,#60a5fa)}
+</style></head><body>
+<div class="shell">
+  <div class="tbar"><div class="logo">方块启动器 <i>BlockLauncher 0.1.0</i></div>
+  <div class="win"><div>—</div><div>□</div><div class="x">✕</div></div></div>
+  <div class="body">
+    <div class="side">
+      <div class="nav">
+        <a class="on"><span class="ico">▦</span>游戏实例</a>
+        <a><span class="ico">↓</span>下载版本</a>
+        <a><span class="ico">◈</span>模组管理</a>
+        <a><span class="ico">◫</span>整合包</a>
+        <a><span class="ico">◎</span>资源中心</a>
+      </div>
+      <div class="sep"></div>
+      <div class="nav"><a><span class="ico">⚙</span>设置</a><a><span class="ico">?</span>帮助与反馈</a></div>
+      <div class="tip">版本 0.1.0 · 自研发布<br>游戏数据来自 Mojang 公开 API</div>
+    </div>
+    <div class="main">
+      <div class="mhead"><div class="t">游戏实例</div><div class="cnt">4</div>
+        <div class="sp"><button class="btn">导入</button><button class="btn pri">＋ 新建</button></div>
+      </div>
+      <div class="content">
+        <div class="list">
+          <div class="row on"><div class="ava f">⛏</div><div class="info">
+            <div class="n">1.21.4 生存服 <em class="e-ready">就绪</em></div>
+            <div class="m"><span>Fabric <b>0.16.9</b></span><span>Java <b>21</b></span><span><b>4096</b> MB</span></div></div>
+            <div class="state"><div class="go">已就绪</div><div>2 小时前</div></div></div>
+          <div class="row"><div class="ava f">⛏</div><div class="info">
+            <div class="n">1.20.1 整合包 <em class="e-ready">就绪</em></div>
+            <div class="m"><span>Forge <b>47.3.0</b></span><span>Java <b>17</b></span><span><b>6144</b> MB</span></div></div>
+            <div class="state"><div class="go">已就绪</div><div>昨天</div></div></div>
+          <div class="row"><div class="ava van">◈</div><div class="info">
+            <div class="n">26.3 最新版 <em class="e-new">可下载</em></div>
+            <div class="m"><span>原版 <b>Vanilla</b></span><span>Java <b>未安装</b></span><span><b>0</b> MB</span></div></div>
+            <div class="state"><div style="color:#fbbf24">待下载</div><div>—</div></div></div>
+          <div class="row"><div class="ava f">⛏</div><div class="info">
+            <div class="n">1.12.2 怀旧服 <em class="e-ready">就绪</em></div>
+            <div class="m"><span>Forge <b>14.23.5</b></span><span>Java <b>8</b></span><span><b>3072</b> MB</span></div></div>
+            <div class="state"><div class="go">已就绪</div><div>3 天前</div></div></div>
+        </div>
+        <div class="detail">
+          <div class="hero"><div class="big">⛏</div><div class="nm">1.21.4 生存服</div><div class="sm">Fabric 0.16.9 · 上次游玩 2 小时前</div></div>
+          <button class="launch">开始游戏</button>
+          <div class="duo"><button>打开目录</button><button>编辑配置</button></div>
+          <div class="box"><h4>运行参数</h4>
+            <div class="kv"><span>游戏版本</span><b>1.21.4</b></div>
+            <div class="kv"><span>加载器</span><b>Fabric 0.16.9</b></div>
+            <div class="kv"><span>Java</span><b>21.0.5</b></div>
+            <div class="kv"><span>内存</span><b>4096 MB</b></div>
+          </div>
+          <div class="box"><h4>快捷操作</h4>
+            <div class="kv"><span>打开版本目录</span><b>›</b></div>
+            <div class="kv"><span>导出实例</span><b>›</b></div>
+            <div class="kv"><span>删除实例</span><b style="color:#ef4444">›</b></div>
+          </div>
+        </div>
+      </div>
+      <div class="sbar"><span><span class="dot"></span>正在校验资源</span><div class="prog"><i></i></div><span>38%</span>
+        <div class="r"><span>未登录</span><span>·</span><span>下载源：官方</span><span>·</span><span>0/4 任务</span></div></div>
+    </div>
+  </div>
+</div></body></html>
