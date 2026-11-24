@@ -67,7 +67,7 @@ public static class InstallService
 
         // 3) 库文件 + natives
         var libs = root.GetProperty("libraries").EnumerateArray().Where(IsAllowedForThisOs).ToList();
-        var downloads = new List<(string Url, string Dest, long Size)>();
+        var downloads = new List<(string Url, string Dest, long Size, string? Sha1)>();
         var nativeJars = new List<string>();
 
         foreach (var lib in libs)
@@ -80,7 +80,10 @@ public static class InstallService
                 var path = artifact.GetProperty("path").GetString();
                 var size = artifact.TryGetProperty("size", out var sz) ? sz.GetInt64() : 0;
                 if (!string.IsNullOrEmpty(url) && !string.IsNullOrEmpty(path))
-                    downloads.Add((url, Path.Combine(mc, "libraries", path), size));
+                {
+                    var sha1 = artifact.TryGetProperty("sha1", out var h) ? h.GetString() : null;
+                    downloads.Add((url, Path.Combine(mc, "libraries", path), size, sha1));
+                }
             }
 
             // 老版本用 natives 字段 + classifiers
@@ -97,7 +100,8 @@ public static class InstallService
                     if (!string.IsNullOrEmpty(url) && !string.IsNullOrEmpty(path))
                     {
                         var dest = Path.Combine(mc, "libraries", path);
-                        downloads.Add((url, dest, size));
+                        var sha1 = classifier.TryGetProperty("sha1", out var h1) ? h1.GetString() : null;
+                        downloads.Add((url, dest, size, sha1));
                         nativeJars.Add(dest);
                     }
                 }
@@ -105,7 +109,7 @@ public static class InstallService
         }
 
         // 新版本（1.19+）的 natives 是普通库条目，名字里带 natives，靠文件名认
-        foreach (var (_, dest, _) in downloads)
+        foreach (var (_, dest, _, _) in downloads)
         {
             var file = Path.GetFileNameWithoutExtension(dest);
             if (!file.Contains("natives", StringComparison.OrdinalIgnoreCase)) continue;
@@ -128,7 +132,7 @@ public static class InstallService
             await sem.WaitAsync(ct);
             try
             {
-                var got = await DownloadAsync(d.Url, d.Dest, ct, d.Size > 0 ? d.Size : null);
+                var got = await DownloadAsync(d.Url, d.Dest, ct, d.Size > 0 ? d.Size : null, d.Sha1);
                 Interlocked.Add(ref doneLibBytes, got > 0 ? got : d.Size);
             }
             finally
@@ -219,10 +223,12 @@ public static class InstallService
                     var sub = hash[..2];
                     var dest = Path.Combine(objectsDir, sub, hash);
 
-                    // 已有且非空的跳过
-                    if (File.Exists(dest) && new FileInfo(dest).Length > 0) return;
+                    // 资源文件名就是 sha1，大小也能从索引里查到
+                    var knownSize = assetSizes.TryGetValue(hash, out var s0) && s0 > 0 ? s0 : (long?)null;
 
-                    var got = await DownloadAsync("https://resources.download.minecraft.net/" + sub + "/" + hash, dest, ct);
+                    var got = await DownloadAsync(
+                        "https://resources.download.minecraft.net/" + sub + "/" + hash,
+                        dest, ct, knownSize, hash);
                     Interlocked.Add(ref doneAssetBytes, got > 0 ? got : (assetSizes.TryGetValue(hash, out var s2) ? s2 : 0));
                 }
                 catch (OperationCanceledException) when (ct.IsCancellationRequested) { throw; }
@@ -322,15 +328,49 @@ public static class InstallService
     }
 
     /// <summary>下载单个文件：镜像优先，失败换官方；已存在且大小对得上才跳过</summary>
-    private static async Task<long> DownloadAsync(string url, string dest, CancellationToken ct, long? expectedSize = null)
+    /// <summary>校验文件 sha1（流式算，不占内存）</summary>
+    private static async Task<bool> Sha1MatchesAsync(string path, string expectedSha1, CancellationToken ct)
     {
+        try
+        {
+            await using var fs = File.OpenRead(path);
+            using var sha = System.Security.Cryptography.SHA1.Create();
+            var hash = await sha.ComputeHashAsync(fs, ct);
+            var hex = Convert.ToHexString(hash).ToLowerInvariant();
+            return hex.Equals(expectedSha1.Trim().ToLowerInvariant(), StringComparison.Ordinal);
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private static async Task<long> DownloadAsync(string url, string dest, CancellationToken ct,
+        long? expectedSize = null, string? expectedSha1 = null)
+    {
+        long resumeFrom = 0;
+
         if (File.Exists(dest))
         {
             var len = new FileInfo(dest).Length;
             if (expectedSize is > 0)
             {
-                if (len == expectedSize.Value) return 0;   // 已经有了，不算下载量
-                try { File.Delete(dest); } catch { }
+                if (len == expectedSize.Value)
+                {
+                    // 大小对得上，再验一下 sha1（有的话）
+                    if (string.IsNullOrEmpty(expectedSha1) || await Sha1MatchesAsync(dest, expectedSha1, ct))
+                        return 0;
+
+                    try { File.Delete(dest); } catch { }
+                }
+                else if (len < expectedSize.Value)
+                {
+                    resumeFrom = len;   // 上次下到一半，接着下
+                }
+                else
+                {
+                    try { File.Delete(dest); } catch { }   // 比预期还大，肯定坏了
+                }
             }
             else if (len > 0) return 0;
         }
@@ -359,13 +399,22 @@ public static class InstallService
                 ct.ThrowIfCancellationRequested();
                 try
                 {
-                    // 每次读取单独计时：60 秒没数据就判断这条连接挂死了
+                    // 每次读取单独计时：25 秒没数据就判断这条连接挂死了
                     using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
 
-                    using var resp = await Http.GetAsync(candidate, HttpCompletionOption.ResponseHeadersRead, cts.Token);
+                    var req = new HttpRequestMessage(HttpMethod.Get, candidate);
+                    if (resumeFrom > 0)
+                        req.Headers.Range = new System.Net.Http.Headers.RangeHeaderValue(resumeFrom, null);
+
+                    using var resp = await Http.SendAsync(req, HttpCompletionOption.ResponseHeadersRead, cts.Token);
                     resp.EnsureSuccessStatusCode();
 
-                    await using var fs = new FileStream(dest, FileMode.Create, FileAccess.Write, FileShare.None, 81920, true);
+                    // 206 = 服务器支持接着下；200 = 不支持，只能从头
+                    var append = resp.StatusCode == System.Net.HttpStatusCode.PartialContent && resumeFrom > 0;
+                    var mode = append ? FileMode.Append : FileMode.Create;
+                    if (!append) resumeFrom = 0;
+
+                    await using var fs = new FileStream(dest, mode, FileAccess.Write, FileShare.None, 81920, true);
                     await using var input = await resp.Content.ReadAsStreamAsync(cts.Token);
 
                     var buffer = new byte[81920];
@@ -379,8 +428,25 @@ public static class InstallService
                     }
 
                     await fs.FlushAsync(ct);
+
                     if (expectedSize is > 0 && fs.Length != expectedSize.Value)
+                    {
+                        // 差一点点的话留着下次续传，差太多就当坏了
+                        if (fs.Length > expectedSize.Value * 2 || fs.Length < expectedSize.Value / 2)
+                        {
+                            try { File.Delete(dest); } catch { }
+                        }
                         throw new IOException("大小不对：" + fs.Length + " / " + expectedSize.Value);
+                    }
+
+                    // 有 sha1 就验一遍，坏了删掉让下一轮重下
+                    if (!string.IsNullOrEmpty(expectedSha1) &&
+                        !await Sha1MatchesAsync(dest, expectedSha1, ct))
+                    {
+                        try { File.Delete(dest); } catch { }
+                        throw new IOException("文件校验不通过（sha1 不符）");
+                    }
+
                     return fs.Length;
                 }
                 catch (OperationCanceledException) when (ct.IsCancellationRequested) { throw; }

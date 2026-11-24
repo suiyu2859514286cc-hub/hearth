@@ -87,6 +87,7 @@
                     <Button x:Name="NavSettings" Content="设置" Style="{StaticResource NavItem}" Click="Nav_Click" Tag="settings"/>
                     <Button x:Name="NavModify" Content="修改" Style="{StaticResource NavItem}" Click="Nav_Click" Tag="modify"/>
                     <Button x:Name="NavMods" Content="Mod 管理" Style="{StaticResource NavItem}" Click="Nav_Click" Tag="mods"/>
+                    <Button x:Name="NavFiles" Content="文件管理" Style="{StaticResource NavItem}" Click="Nav_Click" Tag="files"/>
                     <Button x:Name="NavExport" Content="导出" Style="{StaticResource NavItem}" Click="Nav_Click" Tag="export"/>
                 </StackPanel>
 

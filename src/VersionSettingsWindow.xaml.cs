@@ -57,7 +57,7 @@ public partial class VersionSettingsWindow : Window
     private void ShowPage(string page)
     {
         _page = page;
-        foreach (var b in new[] { NavOverview, NavSettings, NavModify, NavMods, NavExport })
+        foreach (var b in new[] { NavOverview, NavSettings, NavModify, NavMods, NavFiles, NavExport })
         {
             if (b == null) continue;
             var on = (string)b.Tag == page;
@@ -72,6 +72,7 @@ public partial class VersionSettingsWindow : Window
             case "modify": ShowModify(); break;
             case "mods": ShowMods(); break;
             case "export": ShowExport(); break;
+            case "files": ShowFiles(); break;
             default: ShowOverview(); break;
         }
     }
@@ -990,6 +991,107 @@ public partial class VersionSettingsWindow : Window
 
     /// <summary>0 = CurseForge，1 = Modrinth，2 = 原始 zip</summary>
     private int _exportFormat;
+
+    /// <summary>文件管理：存档 / 资源包 / 光影 / 截图</summary>
+    private void ShowFiles()
+    {
+        var gameDir = VersionMeta.GameDir(_versionId);
+        var items = new (string Title, string Folder, string Hint)[]
+        {
+            ("单人游戏存档", "saves", "每个世界一个文件夹，删之前最好备份"),
+            ("资源包", "resourcepacks", "带 pack.mcmeta 的 zip 或文件夹"),
+            ("光影包", "shaderpacks", "进游戏后在「视频设置」里选"),
+            ("截图", "screenshots", "游戏里按 F2 拍的图"),
+        };
+
+        foreach (var (title, folder, hint) in items)
+        {
+            var dir = Path.Combine(gameDir, folder);
+            var panel = new StackPanel();
+
+            int count = 0;
+            long totalBytes = 0;
+            try
+            {
+                if (Directory.Exists(dir))
+                {
+                    count = folder == "saves"
+                        ? Directory.GetDirectories(dir).Length + Directory.GetFiles(dir).Length
+                        : Directory.GetFiles(dir, "*", SearchOption.TopDirectoryOnly).Length;
+
+                    totalBytes = Directory.GetFiles(dir, "*", SearchOption.AllDirectories)
+                        .Sum(x => { try { return new FileInfo(x).Length; } catch { return 0L; } });
+                }
+            }
+            catch { }
+
+            panel.Children.Add(Text(count + " 个 · " + FormatSize(totalBytes), 10, "#8FA8C4"));
+            panel.Children.Add(Text(hint, 9.5, "#6B7C92"));
+
+            var buttons = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 8, 0, 0) };
+            buttons.Children.Add(Btn("打开文件夹", 100, () =>
+            {
+                Directory.CreateDirectory(dir);
+                OpenFolder(dir);
+            }));
+
+            var refresh = Btn("刷新", 70, () => ShowFiles());
+            refresh.Margin = new Thickness(8, 0, 0, 0);
+            buttons.Children.Add(refresh);
+
+            if (count > 0)
+            {
+                var clear = Btn("清空", 70, () =>
+                {
+                    if (!DarkDialog.Confirm(this, "清空" + title,
+                            "会删掉这个文件夹里的所有内容，删了就找不回来。",
+                            "删除", "算了", true))
+                        return;
+
+                    try
+                    {
+                        Directory.Delete(dir, true);
+                        Directory.CreateDirectory(dir);
+                        DarkDialog.Toast(this, "已清空");
+                        ShowFiles();
+                    }
+                    catch (Exception ex)
+                    {
+                        DarkDialog.Info(this, "删除失败", ex.Message);
+                    }
+                }, "#33EF4444");
+                clear.Margin = new Thickness(8, 0, 0, 0);
+                buttons.Children.Add(clear);
+            }
+
+            panel.Children.Add(buttons);
+            PageHost.Children.Add(Card(title, panel));
+        }
+
+        var note = new StackPanel();
+        note.Children.Add(Text("这些文件夹都在：" + gameDir, 10, "#8FA8C4"));
+        note.Children.Add(Text("版本隔离开着的话每个版本有自己的目录，关掉就是 .minecraft 根目录。", 9.5, "#6B7C92"));
+        var nb = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 8, 0, 0) };
+        nb.Children.Add(Btn("打开版本目录", 120, () => OpenFolder(gameDir)));
+        var mb = Btn("打开 Mod 目录", 110, () =>
+        {
+            var mods = Path.Combine(gameDir, "mods");
+            Directory.CreateDirectory(mods);
+            OpenFolder(mods);
+        });
+        mb.Margin = new Thickness(8, 0, 0, 0);
+        nb.Children.Add(mb);
+        note.Children.Add(nb);
+        PageHost.Children.Add(Card("位置", note));
+    }
+
+    private static string FormatSize(long bytes)
+    {
+        if (bytes >= 1024L * 1024 * 1024) return (bytes / 1024.0 / 1024 / 1024).ToString("0.#") + " GB";
+        if (bytes >= 1024 * 1024) return (bytes / 1024.0 / 1024).ToString("0.#") + " MB";
+        if (bytes >= 1024) return (bytes / 1024.0).ToString("0.#") + " KB";
+        return bytes + " B";
+    }
 
     private void ShowExport()
     {
