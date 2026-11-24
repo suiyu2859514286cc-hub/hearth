@@ -230,7 +230,7 @@
                                 </Border>
 
                                 <!-- 推荐区 -->
-                                <Border x:Name="RecBox" Canvas.Left="223" Canvas.Top="120" Width="665" Height="440"
+                                <Border x:Name="RecBox" Canvas.Left="223" Canvas.Top="132" Width="665" Height="428"
                                         Style="{StaticResource GlassCard}">
                                     <Grid Margin="16,13">
                                         <Grid.RowDefinitions>
@@ -545,7 +545,6 @@
                         <TextBlock Text="就绪" FontSize="9.5" Foreground="#CFE0F2"/>
                     </StackPanel>
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
-                        <!-- 有新版本时才出现 -->
                         <Border x:Name="UpdateBar" Visibility="Collapsed" CornerRadius="6" Padding="7,2"
                                 Margin="0,0,10,0" Background="#332563EB" BorderBrush="#663B82F6"
                                 BorderThickness="1" Cursor="Hand" MouseLeftButtonUp="UpdateBar_Click">
