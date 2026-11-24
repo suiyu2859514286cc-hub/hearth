@@ -1990,6 +1990,9 @@ public partial class MainWindow : Window
     {
         try
         {
+            // 设置里关掉了更新提示就不查
+            if (AppSettings.UpdateMode == "off") return;
+
             // 等界面先画出来
             await Task.Delay(2500);
             if (_pendingUpdate != null) return;

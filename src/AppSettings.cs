@@ -11,6 +11,15 @@ public static class AppSettings
     /// <summary>启动器版本号（改这里，全项目跟着变）</summary>
     public const string Version = "0.2.0-beta";
 
+    /// <summary>启动器更新模式：auto（自动检查）/ off（关闭提示）</summary>
+    public static string UpdateMode => Get("updateMode", "auto");
+
+    /// <summary>是否显示公告</summary>
+    public static string Announcements => Get("announcements", "on");
+
+    /// <summary>匿名数据收集</summary>
+    public static string Telemetry => Get("telemetry", "on");
+
     private static readonly string FilePath = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
         "Hearth", "settings.json");

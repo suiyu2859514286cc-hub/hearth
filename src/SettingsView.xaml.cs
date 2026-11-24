@@ -336,8 +336,137 @@ public partial class SettingsView : UserControl
 
     // ===== 其他 =====
 
+    private async void CheckUpdateNow()
+    {
+        var win = Window.GetWindow(this);
+        var latest = await UpdateService.GetLatestAsync();
+
+        if (latest == null)
+        {
+            DarkDialog.Info(win, "检查更新",
+                "没能拿到更新信息，可能是网络问题。" +
+                Environment.NewLine + Environment.NewLine +
+                "GitHub 有时候会比较慢，过一会儿再试。");
+            return;
+        }
+
+        if (!UpdateService.IsNewer(latest.Tag, AppSettings.Version))
+        {
+            DarkDialog.Info(win, "检查更新",
+                "已经是最新版本了（" + AppSettings.Version + "）。");
+            return;
+        }
+
+        var notes = latest.Notes ?? "";
+        if (notes.Length > 500) notes = notes[..500] + "…";
+
+        DarkDialog.Info(win, "发现新版本 " + latest.Tag.TrimStart('v', 'V'),
+            "当前版本：" + AppSettings.Version +
+            Environment.NewLine + Environment.NewLine + notes);
+    }
+
+    private void ExportSettings()
+    {
+        var src = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Hearth", "settings.json");
+
+        if (!File.Exists(src))
+        {
+            DarkDialog.Info(Window.GetWindow(this), "导出设置", "还没有可导出的设置。");
+            return;
+        }
+
+        var dialog = new Microsoft.Win32.SaveFileDialog
+        {
+            Title = "导出设置",
+            FileName = "hearth-settings.json",
+            Filter = "设置文件 (*.json)|*.json"
+        };
+        if (dialog.ShowDialog() != true) return;
+
+        try
+        {
+            File.Copy(src, dialog.FileName, overwrite: true);
+            DarkDialog.Toast(Window.GetWindow(this), "设置已导出");
+        }
+        catch (Exception ex)
+        {
+            DarkDialog.Info(Window.GetWindow(this), "导出失败", ex.Message);
+        }
+    }
+
+    private void ImportSettings()
+    {
+        var dialog = new Microsoft.Win32.OpenFileDialog
+        {
+            Title = "导入设置",
+            Filter = "设置文件 (*.json)|*.json"
+        };
+        if (dialog.ShowDialog() != true) return;
+
+        var dest = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Hearth", "settings.json");
+
+        try
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName(dest)!);
+            File.Copy(dialog.FileName, dest, overwrite: true);
+            DarkDialog.Info(Window.GetWindow(this), "设置已导入",
+                "部分设置（比如主题、下载源）重启启动器后生效。");
+        }
+        catch (Exception ex)
+        {
+            DarkDialog.Info(Window.GetWindow(this), "导入失败", ex.Message);
+        }
+    }
+
     private void ShowOther()
     {
+        // 启动器：更新 / 公告 / 缓存 / 数据收集
+        var launcher = new StackPanel();
+
+        launcher.Children.Add(Field("启动器更新", UiKit.ChoiceGroup(
+            new[] { "自动检查", "关闭更新提示" },
+            AppSettings.UpdateMode == "off" ? 1 : 0,
+            idx => AppSettings.Set("updateMode", idx == 1 ? "off" : "auto"))));
+
+        launcher.Children.Add(Field("启动器公告", UiKit.ChoiceGroup(
+            new[] { "显示所有公告", "不显示公告" },
+            AppSettings.Announcements == "off" ? 1 : 0,
+            idx => AppSettings.Set("announcements", idx == 1 ? "off" : "on"))));
+
+        var cacheDir = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Hearth", "cache");
+        launcher.Children.Add(Field("缓存文件夹", Btn("打开", 70, () =>
+        {
+            Directory.CreateDirectory(cacheDir);
+            OpenFolder(cacheDir);
+        })));
+
+        var telemetry = new CheckBox
+        {
+            Content = "允许匿名数据收集",
+            IsChecked = AppSettings.Telemetry != "off",
+            Foreground = new SolidColorBrush(Color.FromRgb(0xD6, 0xE2, 0xF0)),
+            FontSize = 10.5,
+            Margin = new Thickness(0, 4, 0, 0)
+        };
+        telemetry.Checked += (_, _) => AppSettings.Set("telemetry", "on");
+        telemetry.Unchecked += (_, _) => AppSettings.Set("telemetry", "off");
+        launcher.Children.Add(telemetry);
+
+        var buttons = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 12, 0, 0) };
+        buttons.Children.Add(Btn("检查更新", 100, CheckUpdateNow));
+        var exportBtn = Btn("导出设置", 100, ExportSettings);
+        exportBtn.Margin = new Thickness(8, 0, 0, 0);
+        buttons.Children.Add(exportBtn);
+        var importBtn = Btn("导入设置", 100, ImportSettings);
+        importBtn.Margin = new Thickness(8, 0, 0, 0);
+        buttons.Children.Add(importBtn);
+        launcher.Children.Add(buttons);
+
+        PageHost.Children.Add(Card("启动器", launcher));
+
         var other = new StackPanel();
         var pathText = Text(VersionService.McDir, 10, "#8FA0B8");
         pathText.Margin = new Thickness(0, 6, 0, 0);
