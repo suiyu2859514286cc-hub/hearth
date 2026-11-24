@@ -2070,18 +2070,22 @@ public partial class MainWindow : Window
 
                 try
                 {
-                    var path = await UpdateService.DownloadAsync(info,
+                    // 下载更新包 → 解压 → 生成替换脚本（在当前目录覆盖 Hearth.exe）
+                    var runner = await UpdateService.PrepareUpdateAsync(info,
                         new Progress<(long Done, long Total)>(p =>
                         {
                             if (p.Total > 0)
                                 progress.Value = 100.0 * p.Done / p.Total;
                         }));
 
-                    // 启动安装程序，然后自己退出
+                    // 用隐藏窗口跑替换脚本，然后自己退出
                     System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
                     {
-                        FileName = path,
-                        UseShellExecute = true
+                        FileName = "cmd.exe",
+                        Arguments = "/c \"" + runner + "\"",
+                        WindowStyle = System.Diagnostics.ProcessWindowStyle.Hidden,
+                        CreateNoWindow = true,
+                        UseShellExecute = false
                     });
 
                     Application.Current.Shutdown();

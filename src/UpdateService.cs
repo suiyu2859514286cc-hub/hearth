@@ -26,7 +26,7 @@ public static class UpdateService
         return c;
     }
 
-    public record ReleaseInfo(string Tag, string Name, string Notes, string DownloadUrl, long Size);
+    public record ReleaseInfo(string Tag, string Name, string Notes, string DownloadUrl, long Size, string FileName);
 
     /// <summary>拿最新 release；没有 release 或出错时返回 null</summary>
     public static async Task<ReleaseInfo?> GetLatestAsync(CancellationToken ct = default)
@@ -45,12 +45,12 @@ public static class UpdateService
 
             if (string.IsNullOrEmpty(tag)) return null;
 
-            // 优先挑名字里带 Setup 的安装包
-            string url = "";
-            long size = 0;
+            // 优先挑「更新包」（名字带 Update），其次才是完整安装包
+            string updateUrl = "", updateName = "", setupUrl = "", setupName = "";
+            long updateSize = 0, setupSize = 0;
+
             if (root.TryGetProperty("assets", out var assets) && assets.ValueKind == JsonValueKind.Array)
             {
-                string? fallback = null;
                 foreach (var a in assets.EnumerateArray())
                 {
                     var an = a.TryGetProperty("name", out var anEl) ? anEl.GetString() ?? "" : "";
@@ -58,18 +58,28 @@ public static class UpdateService
                     var asz = a.TryGetProperty("size", out var szEl) && szEl.TryGetInt64(out var sz) ? sz : 0;
 
                     if (string.IsNullOrEmpty(au)) continue;
-                    if (an.Contains("Setup", StringComparison.OrdinalIgnoreCase))
+
+                    if (an.Contains("Update", StringComparison.OrdinalIgnoreCase))
                     {
-                        url = au;
-                        size = asz;
-                        break;
+                        updateUrl = au;
+                        updateName = an;
+                        updateSize = asz;
                     }
-                    fallback ??= au;
+                    else if (an.Contains("Setup", StringComparison.OrdinalIgnoreCase))
+                    {
+                        setupUrl = au;
+                        setupName = an;
+                        setupSize = asz;
+                    }
                 }
-                if (string.IsNullOrEmpty(url)) url = fallback ?? "";
             }
 
-            return new ReleaseInfo(tag, name, notes, url, size);
+            // 有更新包就下更新包（不用重装），没有才退回安装包
+            var url = !string.IsNullOrEmpty(updateUrl) ? updateUrl : setupUrl;
+            var fileName = !string.IsNullOrEmpty(updateUrl) ? updateName : setupName;
+            var size = !string.IsNullOrEmpty(updateUrl) ? updateSize : setupSize;
+
+            return new ReleaseInfo(tag, name, notes, url, size, fileName);
         }
         catch
         {
@@ -108,19 +118,16 @@ public static class UpdateService
         catch { return null; }
     }
 
-    /// <summary>下载安装包到临时目录，返回路径</summary>
-    public static async Task<string> DownloadAsync(ReleaseInfo info,
+    /// <summary>下载一个文件到指定路径</summary>
+    public static async Task<string> DownloadAsync(string url, long expectedSize, string destPath,
         IProgress<(long Done, long Total)>? progress, CancellationToken ct = default)
     {
-        var name = "Hearth-" + info.Tag.TrimStart('v', 'V') + "-Setup.exe";
-        var path = Path.Combine(Path.GetTempPath(), name);
-
-        using var resp = await Http.GetAsync(info.DownloadUrl, HttpCompletionOption.ResponseHeadersRead, ct);
+        using var resp = await Http.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, ct);
         resp.EnsureSuccessStatusCode();
 
-        var total = resp.Content.Headers.ContentLength ?? info.Size;
+        var total = resp.Content.Headers.ContentLength ?? expectedSize;
 
-        await using var fs = File.Create(path);
+        await using var fs = File.Create(destPath);
         await using var input = await resp.Content.ReadAsStreamAsync(ct);
 
         var buffer = new byte[81920];
@@ -134,6 +141,53 @@ public static class UpdateService
             progress?.Report((done, total));
         }
 
-        return path;
+        return destPath;
+    }
+
+    /// <summary>
+    /// 下载更新包并生成「替换自己并重启」的脚本。
+    /// 更新包是 zip（里面一个 Hearth.exe）；下载完解压出来，再让 bat 在启动器退出后覆盖。
+    /// </summary>
+    public static async Task<string> PrepareUpdateAsync(ReleaseInfo info,
+        IProgress<(long Done, long Total)>? progress, CancellationToken ct = default)
+    {
+        var appDir = AppContext.BaseDirectory.TrimEnd(Path.DirectorySeparatorChar);
+        var appExe = Path.Combine(appDir, "Hearth.exe");
+
+        var tempDir = Path.Combine(Path.GetTempPath(),
+            "hearth-update-" + Guid.NewGuid().ToString("N")[..8]);
+        Directory.CreateDirectory(tempDir);
+
+        var pkg = Path.Combine(tempDir, "package" + Path.GetExtension(info.FileName));
+        await DownloadAsync(info.DownloadUrl, info.Size, pkg, progress, ct);
+
+        // 解压出新的 exe
+        string newExe;
+        if (pkg.EndsWith(".zip", StringComparison.OrdinalIgnoreCase))
+        {
+            System.IO.Compression.ZipFile.ExtractToDirectory(pkg, tempDir, overwriteFiles: true);
+            newExe = Directory.GetFiles(tempDir, "Hearth.exe", SearchOption.AllDirectories).FirstOrDefault()
+                     ?? throw new InvalidOperationException("更新包里没有 Hearth.exe");
+        }
+        else if (pkg.EndsWith(".exe", StringComparison.OrdinalIgnoreCase))
+        {
+            newExe = pkg;
+        }
+        else
+        {
+            throw new InvalidOperationException("不认识的更新包格式：" + info.FileName);
+        }
+
+        // 替换脚本：等启动器退出 → 覆盖 exe → 重新打开
+        var bat = Path.Combine(tempDir, "apply-update.bat");
+        var script =
+            "@echo off\r\n" +
+            "timeout /t 2 /nobreak >nul\r\n" +
+            "copy /y \"" + newExe + "\" \"" + appExe + "\" >nul\r\n" +
+            "start \"\" \"" + appExe + "\"\r\n" +
+            "del \"%~f0\"\r\n";
+
+        File.WriteAllText(bat, script, System.Text.Encoding.Default);
+        return bat;
     }
 }
