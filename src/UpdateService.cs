@@ -15,11 +15,15 @@ public static class UpdateService
     private const string Owner = "suiyu2859514286cc-hub";
     private const string Repo = "hearth";
 
-    private static readonly HttpClient Http = CreateClient();
+    /// <summary>查 API 用：20 秒够了</summary>
+    private static readonly HttpClient Http = CreateClient(TimeSpan.FromSeconds(20));
 
-    private static HttpClient CreateClient()
+    /// <summary>下安装包用：不能设短超时，56 MB 会被掐断（之前就是这个 bug）</summary>
+    private static readonly HttpClient DownloadClient = CreateClient(Timeout.InfiniteTimeSpan);
+
+    private static HttpClient CreateClient(TimeSpan timeout)
     {
-        var c = new HttpClient { Timeout = TimeSpan.FromSeconds(20) };
+        var c = new HttpClient { Timeout = timeout };
         c.DefaultRequestHeaders.UserAgent.Add(new ProductInfoHeaderValue("Hearth", AppSettings.Version));
         c.DefaultRequestHeaders.Accept.Add(
             new MediaTypeWithQualityHeaderValue("application/vnd.github+json"));
@@ -122,7 +126,7 @@ public static class UpdateService
     public static async Task<string> DownloadAsync(string url, long expectedSize, string destPath,
         IProgress<(long Done, long Total)>? progress, CancellationToken ct = default)
     {
-        using var resp = await Http.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, ct);
+        using var resp = await DownloadClient.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, ct);
         resp.EnsureSuccessStatusCode();
 
         var total = resp.Content.Headers.ContentLength ?? expectedSize;

@@ -2161,7 +2161,14 @@ public partial class MainWindow : Window
                 }
                 catch (Exception ex)
                 {
-                    DarkDialog.Info(this, "下载更新失败", ex.Message);
+                    var reason = ex.Message;
+                    if (reason.Contains("Timeout", StringComparison.OrdinalIgnoreCase) ||
+                        reason.Contains("canceled", StringComparison.OrdinalIgnoreCase))
+                        reason = "下载超时了。可能是网络太慢或者 GitHub 这会儿连不上。\n\n" +
+                                 "可以稍后再试，或者直接去下面的页面手动下载安装包：\n" +
+                                 "github.com/suiyu2859514286cc-hub/hearth/releases/latest";
+
+                    DarkDialog.Info(this, "下载更新失败", reason);
                 }
             });
     }
