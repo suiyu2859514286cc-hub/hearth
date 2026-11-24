@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Threading;
 
@@ -22,6 +23,10 @@ public partial class App : Application
         {
             WriteLog(args.ExceptionObject as Exception);
         };
+
+        // 启动画面现在是主窗口里的一层，不再单独开窗口
+        MainWindow = new MainWindow();
+        MainWindow.Show();
     }
 
     private void OnUnhandled(object sender, DispatcherUnhandledExceptionEventArgs e)

@@ -30,6 +30,8 @@ public partial class MainWindow : Window
         LoadDownloadable();
         BuildMods();
         BuildHistory();
+        PrepareSplash();
+
         Loaded += (_, _) =>
         {
             AcrylicHelper.Enable(this, 0xCC0B0F16);
@@ -49,6 +51,13 @@ public partial class MainWindow : Window
             if (StatusBarText != null)
                 StatusBarText.Text = (AppSettings.DownloadSource == "official" ? "下载源：官方" : "下载源：镜像")
                                      + "   ·   v" + AppSettings.Version;
+
+            // 界面画完了，让启动画面裂开
+            Dispatcher.BeginInvoke(new Action(async () =>
+            {
+                await Task.Delay(420);
+                FinishSplash();
+            }), System.Windows.Threading.DispatcherPriority.ApplicationIdle);
 
             // 后台查一下有没有新版本，不挡界面
             _ = CheckUpdateAsync();
@@ -2043,6 +2052,134 @@ public partial class MainWindow : Window
     private string? _playerName;
 
     private UpdateService.ReleaseInfo? _pendingUpdate;
+
+    // ===== 启动画面（裂开转场） =====
+
+    private bool _splashDone;
+    private readonly System.Threading.Tasks.TaskCompletionSource _splashReady = new();
+
+    private void PrepareSplash()
+    {
+        try
+        {
+            SplashBg.Source = new BitmapImage(new Uri("pack://application:,,,/assets/hero.jpg", UriKind.Absolute));
+        }
+        catch { }
+
+        try
+        {
+            SplashIcon.Source = new BitmapImage(new Uri("pack://application:,,,/splash-icon.png", UriKind.Absolute));
+        }
+        catch { }
+
+        SplashStatus.Text = "正在读取配置…";
+        SetSplashProgress(35);
+    }
+
+    private void SetSplashProgress(double pct, string? text = null)
+    {
+        var anim = new DoubleAnimation(SplashBar.Width, Math.Max(0, Math.Min(170, 170 * pct / 100)),
+            TimeSpan.FromMilliseconds(300))
+        { EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut } };
+        SplashBar.BeginAnimation(FrameworkElement.WidthProperty, anim);
+
+        if (!string.IsNullOrEmpty(text)) SplashStatus.Text = text;
+    }
+
+    /// <summary>加载完成后：启动画面从中间十字裂开，四块飞出去</summary>
+    private async void FinishSplash()
+    {
+        if (_splashDone) return;
+        _splashDone = true;
+
+        try
+        {
+            await FinishSplashCore();
+        }
+        catch
+        {
+            // 出什么问题都别把启动画面留在那儿
+            SplashLayer.Visibility = Visibility.Collapsed;
+        }
+    }
+
+    private async Task FinishSplashCore()
+    {
+
+        SetSplashProgress(100, "好了");
+        await Task.Delay(340);
+
+        var w = SplashLayer.ActualWidth;
+        var h = SplashLayer.ActualHeight;
+        if (w < 10 || h < 10)
+        {
+            SplashLayer.Visibility = Visibility.Collapsed;
+            return;
+        }
+
+        RenderTargetBitmap shot;
+        try
+        {
+            shot = new RenderTargetBitmap((int)w, (int)h, 96, 96, PixelFormats.Pbgra32);
+            shot.Render(SplashLayer);
+            shot.Freeze();
+        }
+        catch
+        {
+            SplashLayer.Visibility = Visibility.Collapsed;
+            return;
+        }
+
+        // 藏原件，上碎片
+        SplashLayer.Background = Brushes.Transparent;
+        foreach (var child in SplashLayer.Children.OfType<FrameworkElement>().ToList())
+        {
+            if (child == SplashShards) continue;
+            child.Visibility = Visibility.Collapsed;
+        }
+        SplashShards.Visibility = Visibility.Visible;
+
+        var halfW = w / 2;
+        var halfH = h / 2;
+        const int duration = 640;
+
+        var quads = new (double X, double Y, double OutX, double OutY)[]
+        {
+            (0, 0, -w, -h),
+            (halfW, 0, w, -h),
+            (0, halfH, -w, h),
+            (halfW, halfH, w, h),
+        };
+
+        foreach (var q in quads)
+        {
+            var img = new Image
+            {
+                Source = shot,
+                Stretch = Stretch.None,
+                Width = w,
+                Height = h,
+                Clip = new RectangleGeometry(new Rect(q.X, q.Y, halfW, halfH))
+            };
+            Canvas.SetLeft(img, 0);
+            Canvas.SetTop(img, 0);
+
+            var translate = new TranslateTransform(0, 0);
+            img.RenderTransform = translate;
+            SplashShards.Children.Add(img);
+
+            var ease = new CubicEase { EasingMode = EasingMode.EaseIn };
+            translate.BeginAnimation(TranslateTransform.XProperty,
+                new DoubleAnimation(q.OutX, TimeSpan.FromMilliseconds(duration)) { EasingFunction = ease });
+            translate.BeginAnimation(TranslateTransform.YProperty,
+                new DoubleAnimation(q.OutY, TimeSpan.FromMilliseconds(duration)) { EasingFunction = ease });
+        }
+
+        await Task.Delay(duration + 40);
+
+        SplashLayer.Visibility = Visibility.Collapsed;
+        SplashShards.Children.Clear();
+    }
 
     /// <summary>启动后查一次 GitHub Releases</summary>
     private async Task CheckUpdateAsync()

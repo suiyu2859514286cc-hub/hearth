@@ -11,9 +11,9 @@
     <Product>Hearth</Product>
     <AssemblyTitle>Hearth</AssemblyTitle>
     <Company>Hearth</Company>
-    <Version>0.2.4</Version>
-    <FileVersion>0.2.4.0</FileVersion>
-    <InformationalVersion>0.2.4-beta</InformationalVersion>
+    <Version>0.2.5</Version>
+    <FileVersion>0.2.5.0</FileVersion>
+    <InformationalVersion>0.2.5-beta</InformationalVersion>
 
     <!-- 发布成单文件 exe，直接放根目录双击就能用 -->
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
@@ -27,6 +27,8 @@
   <ItemGroup>
     <!-- 背景图直接编进 exe，不依赖外部 assets 文件夹 -->
     <Resource Include="..\assets\*.*" Link="assets\%(Filename)%(Extension)" />
+    <!-- 启动画面用的壁炉图标 -->
+    <Resource Include="splash-icon.png" />
   </ItemGroup>
   <ItemGroup>
     <Resource Include="hearth.ico" />
