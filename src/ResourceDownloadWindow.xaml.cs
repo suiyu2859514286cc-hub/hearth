@@ -117,40 +117,38 @@ public partial class ResourceDownloadWindow : Window
     /// <summary>目标选择菜单：当前版本 / 其它已装版本 / 全局 / 浏览文件夹</summary>
     private void ShowTargetMenu()
     {
-        var menu = new ContextMenu();
+        if (_targetBtn == null) return;
+
+        var items = new List<(string Label, Action? OnClick)>();
 
         void AddItem(string header, string type, string? version = null, string? path = null)
         {
             var isCurrent = _target == type &&
                             (type != "version" || version == _currentVersion) &&
                             (type != "custom" || path == _customPath);
-            var item = new MenuItem { Header = (isCurrent ? "✓ " : "   ") + header };
-            item.Click += (_, _) =>
+
+            items.Add(((isCurrent ? "✓ " : "    ") + header, () =>
             {
                 _target = type;
                 if (type == "version") _currentVersion = version;
                 if (type == "custom") _customPath = path;
                 RefreshTargetLabel();
-            };
-            menu.Items.Add(item);
+            }));
         }
 
-        // 当前选中的版本放第一个
         if (!string.IsNullOrEmpty(_currentVersion))
             AddItem(_currentVersion + "（当前）", "version", _currentVersion);
 
-        // 同一个游戏文件夹里的其它版本
         var others = GetInstalledVersions()
             .Where(v => !string.Equals(v, _currentVersion, StringComparison.OrdinalIgnoreCase))
             .ToList();
         foreach (var v in others) AddItem(v, "version", v);
 
-        menu.Items.Add(new Separator());
+        items.Add(("-", null));
         AddItem("全局 .minecraft", "global");
 
-        menu.Items.Add(new Separator());
-        var browse = new MenuItem { Header = "浏览文件夹…" };
-        browse.Click += (_, _) =>
+        items.Add(("-", null));
+        items.Add(("浏览文件夹…", () =>
         {
             var dialog = new Microsoft.Win32.OpenFolderDialog { Title = "选择下载到哪个文件夹" };
             if (dialog.ShowDialog(this) == true)
@@ -159,12 +157,9 @@ public partial class ResourceDownloadWindow : Window
                 _customPath = dialog.FolderName;
                 RefreshTargetLabel();
             }
-        };
-        menu.Items.Add(browse);
+        }));
 
-        menu.PlacementTarget = _targetBtn;
-        menu.Placement = System.Windows.Controls.Primitives.PlacementMode.Bottom;
-        menu.IsOpen = true;
+        MenuPopup.Show(_targetBtn, items);
     }
 
     private static List<string> GetInstalledVersions()
