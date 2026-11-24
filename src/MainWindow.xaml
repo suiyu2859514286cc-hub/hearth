@@ -544,7 +544,15 @@
                         <Ellipse Width="4" Height="4" Fill="#4ADE80" Margin="0,0,6,0"/>
                         <TextBlock Text="就绪" FontSize="9.5" Foreground="#CFE0F2"/>
                     </StackPanel>
-                    <TextBlock x:Name="StatusBarText" Text="就绪" FontSize="9.5" Foreground="#CFE0F2" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                        <!-- 有新版本时才出现 -->
+                        <Border x:Name="UpdateBar" Visibility="Collapsed" CornerRadius="6" Padding="7,2"
+                                Margin="0,0,10,0" Background="#332563EB" BorderBrush="#663B82F6"
+                                BorderThickness="1" Cursor="Hand" MouseLeftButtonUp="UpdateBar_Click">
+                            <TextBlock x:Name="UpdateBarText" Text="有新版本" FontSize="9.5" Foreground="#9CC8FF"/>
+                        </Border>
+                        <TextBlock x:Name="StatusBarText" Text="就绪" FontSize="9.5" Foreground="#CFE0F2" VerticalAlignment="Center"/>
+                    </StackPanel>
                 </Grid>
             </Border>
         </Grid>

@@ -49,6 +49,9 @@ public partial class MainWindow : Window
             if (StatusBarText != null)
                 StatusBarText.Text = (AppSettings.DownloadSource == "official" ? "下载源：官方" : "下载源：镜像")
                                      + "   ·   v" + AppSettings.Version;
+
+            // 后台查一下有没有新版本，不挡界面
+            _ = CheckUpdateAsync();
             // 调试/快捷方式用：--versions 进版本选择，--download 进下载页
             if (Environment.GetCommandLineArgs().Contains("--versions"))
                 NavVersions_Click(this, new RoutedEventArgs());
@@ -1979,6 +1982,116 @@ public partial class MainWindow : Window
     // ===== 登录 =====
     private bool _loggedIn = false;
     private string? _playerName;
+
+    private UpdateService.ReleaseInfo? _pendingUpdate;
+
+    /// <summary>启动后查一次 GitHub Releases</summary>
+    private async Task CheckUpdateAsync()
+    {
+        try
+        {
+            // 等界面先画出来
+            await Task.Delay(2500);
+            if (_pendingUpdate != null) return;
+
+            var latest = await UpdateService.GetLatestAsync();
+            if (latest == null) return;
+            if (!UpdateService.IsNewer(latest.Tag, AppSettings.Version)) return;
+
+            _pendingUpdate = latest;
+
+            // 状态栏右侧亮一个可点的提示
+            if (UpdateBar != null)
+            {
+                UpdateBar.Visibility = Visibility.Visible;
+                if (UpdateBarText != null)
+                    UpdateBarText.Text = "有新版本 " + latest.Tag.TrimStart('v', 'V') + "，点这里更新";
+            }
+        }
+        catch { }
+    }
+
+    private void UpdateBar_Click(object sender, MouseButtonEventArgs e)
+    {
+        if (_pendingUpdate != null) ShowUpdateDialog(_pendingUpdate);
+    }
+
+    /// <summary>更新弹窗：说明 + 下载 + 安装</summary>
+    private void ShowUpdateDialog(UpdateService.ReleaseInfo info)
+    {
+        var body = new StackPanel();
+
+        body.Children.Add(new TextBlock
+        {
+            Text = "当前版本 " + AppSettings.Version + "   →   " + info.Tag.TrimStart('v', 'V'),
+            FontSize = 12,
+            Foreground = new SolidColorBrush(Color.FromRgb(0xB9, 0xC9, 0xDC)),
+            Margin = new Thickness(0, 0, 0, 10)
+        });
+
+        if (!string.IsNullOrWhiteSpace(info.Notes))
+        {
+            body.Children.Add(new TextBlock
+            {
+                Text = info.Notes,
+                FontSize = 11,
+                Foreground = new SolidColorBrush(Color.FromRgb(0x8F, 0xA0, 0xB8)),
+                TextWrapping = TextWrapping.Wrap,
+                MaxHeight = 260
+            });
+        }
+
+        var progress = new System.Windows.Controls.ProgressBar
+        {
+            Height = 5,
+            Margin = new Thickness(0, 14, 0, 0),
+            Visibility = Visibility.Collapsed,
+            Background = new SolidColorBrush(Color.FromArgb(0x22, 0xFF, 0xFF, 0xFF)),
+            Foreground = new SolidColorBrush(Color.FromRgb(0x3B, 0x82, 0xF6)),
+            BorderThickness = new Thickness(0)
+        };
+        body.Children.Add(progress);
+
+        DarkDialog.ShowCustom(this, "发现新版本",
+            body,
+            ("稍后再说", false),
+            ("下载并安装", true),
+            async ok =>
+            {
+                if (!ok) return;
+
+                if (string.IsNullOrEmpty(info.DownloadUrl))
+                {
+                    DarkDialog.Info(this, "更新失败", "这个版本没有提供安装包");
+                    return;
+                }
+
+                progress.Visibility = Visibility.Visible;
+
+                try
+                {
+                    var path = await UpdateService.DownloadAsync(info,
+                        new Progress<(long Done, long Total)>(p =>
+                        {
+                            if (p.Total > 0)
+                                progress.Value = 100.0 * p.Done / p.Total;
+                        }));
+
+                    // 启动安装程序，然后自己退出
+                    System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+                    {
+                        FileName = path,
+                        UseShellExecute = true
+                    });
+
+                    Application.Current.Shutdown();
+                }
+                catch (Exception ex)
+                {
+                    DarkDialog.Info(this, "下载更新失败", ex.Message);
+                }
+            });
+    }
 
     /// <summary>这个实例正在用的账号（账户窗口要读它，不能读文件）</summary>
     public MicrosoftAuth.Account? CurrentAccount => _account;

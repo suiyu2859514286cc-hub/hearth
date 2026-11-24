@@ -311,4 +311,83 @@ public static class DarkDialog
         win.ShowDialog();
         return result;
     }
+
+    /// <summary>自定义内容的对话框（比如带进度的更新提示）</summary>
+    public static void ShowCustom(Window? owner, string title, UIElement body,
+        (string Text, bool Primary) cancel,
+        (string Text, bool Primary) ok,
+        Action<bool> callback)
+    {
+        var win = new Window
+        {
+            WindowStyle = WindowStyle.None,
+            AllowsTransparency = true,
+            Background = Brushes.Transparent,
+            ShowInTaskbar = false,
+            ResizeMode = ResizeMode.NoResize,
+            SizeToContent = SizeToContent.Height,
+            Width = 480,
+            WindowStartupLocation = WindowStartupLocation.CenterOwner,
+            Owner = owner != null && owner.IsVisible ? owner : null
+        };
+
+        var okButton = new Button
+        {
+            Content = ok.Text,
+            Width = 110,
+            Margin = new Thickness(0, 0, 8, 0),
+            Background = new SolidColorBrush(Color.FromArgb(0xCC, 0x25, 0x63, 0xEB)),
+            Foreground = Brushes.White,
+            BorderThickness = new Thickness(0),
+            Padding = new Thickness(0, 8, 0, 8),
+            Cursor = System.Windows.Input.Cursors.Hand
+        };
+        okButton.Click += (_, _) => { win.Close(); callback(true); };
+
+        var cancelButton = new Button
+        {
+            Content = cancel.Text,
+            Width = 96,
+            Background = new SolidColorBrush(Color.FromArgb(0x22, 0xFF, 0xFF, 0xFF)),
+            Foreground = TextBrush,
+            BorderBrush = BorderBrush,
+            BorderThickness = new Thickness(1),
+            Padding = new Thickness(0, 8, 0, 8),
+            Cursor = System.Windows.Input.Cursors.Hand
+        };
+        cancelButton.Click += (_, _) => { win.Close(); callback(false); };
+
+        var buttons = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            HorizontalAlignment = HorizontalAlignment.Right,
+            Margin = new Thickness(0, 18, 0, 0)
+        };
+        buttons.Children.Add(okButton);
+        buttons.Children.Add(cancelButton);
+
+        var content = new StackPanel();
+        content.Children.Add(new TextBlock
+        {
+            Text = title,
+            Foreground = Brushes.White,
+            FontSize = 14,
+            FontWeight = FontWeights.SemiBold
+        });
+        content.Children.Add(body);
+        content.Children.Add(buttons);
+
+        win.Content = new Border
+        {
+            Background = PanelBrush,
+            BorderBrush = BorderBrush,
+            BorderThickness = new Thickness(1),
+            CornerRadius = new CornerRadius(14),
+            Padding = new Thickness(24, 20, 24, 20),
+            Child = content
+        };
+        win.Loaded += (_, _) => WindowAnim.PlayIn((FrameworkElement)win.Content);
+
+        win.ShowDialog();
+    }
 }
