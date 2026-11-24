@@ -2835,7 +2835,9 @@ public partial class MainWindow : Window
                 this,
                 "需要 Java " + major,
                 "这个版本要用 Java " + major + " 运行，本机没找到。\n\n要我自动下载一个吗？（约 180 MB，只下一次）",
-                "下载", "取消")));
+                "下载", "取消")),
+            null,
+            exitCode => Dispatcher.BeginInvoke(new Action(() => OnGameExited(versionId, exitCode))));
 
         ProgressText.Text = message;
 
@@ -2889,6 +2891,91 @@ public partial class MainWindow : Window
         LaunchBtn.Content = old;
         LaunchBtn.IsEnabled = true;
         _launching = false;
+    }
+
+    /// <summary>游戏进程退出：正常关闭不管，异常退出就分析一下</summary>
+    private void OnGameExited(string versionId, int exitCode)
+    {
+        // 退出码 0 是正常关游戏，不打扰
+        if (exitCode == 0) return;
+
+        var result = CrashAnalyzer.Analyze(versionId, exitCode);
+
+        // 认得出原因才弹窗；认不出也给一份，但语气放软
+        ShowCrashReport(versionId, result);
+    }
+
+    private void ShowCrashReport(string versionId, CrashAnalyzer.Result result)
+    {
+        var body = new StackPanel();
+
+        body.Children.Add(new TextBlock
+        {
+            Text = result.Reason,
+            FontSize = 11.5,
+            Foreground = new SolidColorBrush(Color.FromRgb(0xD6, 0xE2, 0xF0)),
+            TextWrapping = TextWrapping.Wrap,
+            LineHeight = 19
+        });
+
+        body.Children.Add(new TextBlock
+        {
+            Text = "怎么办",
+            FontSize = 10.5,
+            FontWeight = FontWeights.SemiBold,
+            Foreground = new SolidColorBrush(Color.FromRgb(0x9C, 0xC8, 0xFF)),
+            Margin = new Thickness(0, 14, 0, 4)
+        });
+
+        body.Children.Add(new TextBlock
+        {
+            Text = result.Suggestion,
+            FontSize = 11,
+            Foreground = new SolidColorBrush(Color.FromRgb(0xB9, 0xC9, 0xDC)),
+            TextWrapping = TextWrapping.Wrap,
+            LineHeight = 19
+        });
+
+        var tail = CrashAnalyzer.ReadTail(result.LogPath);
+        if (!string.IsNullOrWhiteSpace(tail))
+        {
+            var box = new Border
+            {
+                Background = new SolidColorBrush(Color.FromArgb(0x33, 0x00, 0x00, 0x00)),
+                CornerRadius = new CornerRadius(8),
+                Padding = new Thickness(10),
+                Margin = new Thickness(0, 12, 0, 0),
+                MaxHeight = 180
+            };
+
+            box.Child = new ScrollViewer
+            {
+                VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+                Content = new TextBlock
+                {
+                    Text = tail,
+                    FontFamily = new FontFamily("Consolas, Microsoft YaHei UI"),
+                    FontSize = 9.5,
+                    Foreground = new SolidColorBrush(Color.FromRgb(0x8F, 0xA0, 0xB8)),
+                    TextWrapping = TextWrapping.Wrap
+                }
+            };
+            body.Children.Add(box);
+        }
+
+        DarkDialog.ShowCustom(this, result.Title, body,
+            ("知道了", false),
+            ("复制日志路径", true),
+            ok =>
+            {
+                if (!ok) return;
+                try
+                {
+                    Clipboard.SetText(result.LogPath);
+                    DarkDialog.Toast(this, "路径已复制");
+                }
+                catch { }
+            });
     }
 
     private CancellationTokenSource? _launchCts;

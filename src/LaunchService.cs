@@ -173,7 +173,8 @@ public static class LaunchService
         CancellationToken ct = default,
         string? accessToken = null, string? uuid = null,
         Func<int, bool>? confirmJavaDownload = null,
-        Action<int>? onJavaDownloadStart = null)
+        Action<int>? onJavaDownloadStart = null,
+        Action<int>? onExit = null)
     {
         try
         {
@@ -214,7 +215,10 @@ public static class LaunchService
 
             ct.ThrowIfCancellationRequested();
 
+            // 用去重集合：同一个 jar 出现两次会让 NeoForge 的 BootstrapLauncher 直接报
+            // IllegalStateException: Duplicate key
             var cp = new List<string>();
+            var cpSeen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             if (root["libraries"] is JsonArray libs)
             {
                 foreach (var lib in libs.OfType<JsonObject>())
@@ -231,7 +235,7 @@ public static class LaunchService
                     if (fileName.Contains("arm64", StringComparison.OrdinalIgnoreCase)) continue;
                     if (fileName.Contains("-x86", StringComparison.OrdinalIgnoreCase) &&
                         !fileName.Contains("x86_64", StringComparison.OrdinalIgnoreCase)) continue;
-                    if (File.Exists(full)) cp.Add(full);
+                    if (File.Exists(full) && cpSeen.Add(full)) cp.Add(full);
                 }
             }
 
@@ -248,7 +252,7 @@ public static class LaunchService
                     catch { clientJar = parentJar; }
                 }
             }
-            if (File.Exists(clientJar)) cp.Add(clientJar);
+            if (File.Exists(clientJar) && cpSeen.Add(clientJar)) cp.Add(clientJar);
 
             var natives = Path.Combine(vDir, "natives");
             if (!Directory.Exists(natives) || Directory.GetFiles(natives).Length == 0)
@@ -369,7 +373,27 @@ public static class LaunchService
             proc.BeginErrorReadLine();
 
             await Task.Delay(2500);
-            if (proc.HasExited) return (false, "游戏启动后立刻退出了，看 " + logPath);
+
+            if (proc.HasExited)
+            {
+                // 这个由调用方弹"启动失败"，不要再走 onExit，否则两个弹窗叠一起
+                return (false, "游戏启动后立刻退出了，看 " + logPath);
+            }
+
+            // 之后才退出的：正常玩完还是崩了，交给回调判断
+            if (onExit != null)
+            {
+                var captured = proc;
+                _ = Task.Run(async () =>
+                {
+                    try
+                    {
+                        await captured.WaitForExitAsync();
+                        onExit(captured.ExitCode);
+                    }
+                    catch { }
+                });
+            }
 
             return (true, "已用 Java " + wantedMajor + " 启动 " + versionId);
         }
