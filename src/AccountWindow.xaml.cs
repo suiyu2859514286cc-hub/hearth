@@ -19,8 +19,13 @@ public partial class AccountWindow : Window
 
     public bool LoggedOut { get; private set; }
 
-    public AccountWindow()
+    private readonly string? _offlineName;
+    private readonly bool _thirdParty;
+
+    public AccountWindow(string? offlineName = null, bool thirdParty = false)
     {
+        _offlineName = offlineName;
+        _thirdParty = thirdParty;
         InitializeComponent();
         // 主窗口偏右时 CenterOwner 会把钱包窗口推到屏幕外，改成主屏居中
         ContentRendered += (_, _) =>
@@ -103,6 +108,12 @@ public partial class AccountWindow : Window
 
         if (_account == null)
         {
+            if (!string.IsNullOrEmpty(_offlineName))
+            {
+                BuildOfflineCard();
+                return;
+            }
+
             Body.Children.Add(Text("还没有登录的账号。", 12, "#B9C9DC"));
             var addFirst = Btn("添加账号", 110, () => AddAccount());
             addFirst.HorizontalAlignment = HorizontalAlignment.Left;
@@ -229,6 +240,85 @@ public partial class AccountWindow : Window
                 Open("https://www.minecraft.net/msaprofile")),
             Item("使用 CDKEY 兑换奖励", () =>
                 Open("https://www.minecraft.net/redeem"))));
+    }
+
+    /// <summary>离线 / 第三方账号的信息卡片：名字、UUID、退出</summary>
+    private void BuildOfflineCard()
+    {
+        var name = _offlineName!;
+        var typeText = _thirdParty ? "皮肤站账号" : "离线账号";
+        var uuid = _thirdParty
+            ? AppSettings.Get("thirdPartyUuid", "")
+            : LoginWindow.OfflineUuid(name);
+
+        var head = new Grid { Margin = new Thickness(0, 0, 0, 16) };
+        head.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        head.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+
+        var avatar = new Border
+        {
+            Width = 72, Height = 72, CornerRadius = new CornerRadius(10),
+            Background = new SolidColorBrush(Color.FromArgb(0x33, 0x3B, 0x82, 0xF6)),
+            ClipToBounds = true
+        };
+        avatar.Child = new TextBlock
+        {
+            Text = name.Length > 0 ? name[..1].ToUpperInvariant() : "?",
+            FontSize = 30, FontWeight = FontWeights.Bold, Foreground = Brushes.White,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Center
+        };
+        head.Children.Add(avatar);
+
+        var info = new StackPanel { Margin = new Thickness(14, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center };
+        var nameBlock = Text(name, 19, "#FFFFFF", true);
+        nameBlock.Margin = new Thickness(0, 0, 0, 2);
+        info.Children.Add(nameBlock);
+        info.Children.Add(Text(typeText, 10, "#9CC8FF"));
+        info.Children.Add(Text(uuid, 9, "#6B7C92"));
+        Grid.SetColumn(info, 1);
+        head.Children.Add(info);
+
+        Body.Children.Add(head);
+
+        var note = new StackPanel();
+        note.Children.Add(Text(_thirdParty
+            ? "这个账号走皮肤站，皮肤是站里设置的那张。"
+            : "离线模式下只有这个名字跟着你，皮肤是默认的。", 10.5, "#B9C9DC"));
+        note.Children.Add(Text(_thirdParty
+            ? "进不了正版服务器（Hypixel 这类要微软账号）。"
+            : "想换皮肤或进皮肤站服务器，可以退出后改用第三方账号。", 9.5, "#6B7C92"));
+        Body.Children.Add(Card("说明", note));
+
+        var buttons = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 14, 0, 0) };
+        var logout = Btn("退出登录", 110, () =>
+        {
+            if (!DarkDialog.Confirm(this, "退出登录",
+                    "退出后就回到未登录状态，可以重新选登录方式。\n存档和游戏数据不会动。",
+                    "退出", "算了", true))
+                return;
+
+            if (_thirdParty)
+            {
+                AppSettings.Set("thirdPartyToken", "");
+                AppSettings.Set("thirdPartyName", "");
+                AppSettings.Set("thirdPartyUuid", "");
+            }
+
+            LoggedOut = true;
+            Close();
+        }, "#33EF4444");
+        buttons.Children.Add(logout);
+
+        var switchTo = Btn(_thirdParty ? "换离线名字" : "换第三方账号", 130, () =>
+        {
+            Close();
+            if (Owner is MainWindow mw) mw.ShowAccountChooserFromOutside();
+        }, "#333B82F6");
+        switchTo.Margin = new Thickness(8, 0, 0, 0);
+        buttons.Children.Add(switchTo);
+
+        Body.Children.Add(buttons);
     }
 
     /// <summary>切换到另一个账号</summary>

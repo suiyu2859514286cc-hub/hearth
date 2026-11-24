@@ -312,6 +312,218 @@ public static class DarkDialog
         return result;
     }
 
+    /// <summary>
+    /// 多选项弹窗：buttons 从右往左排，返回选中项的下标；点右上角 ✕ 或按 Esc 返回 -1（取消）
+    /// </summary>
+    public static int Choose(Window? owner, string title, string message,
+        params (string Text, bool Primary)[] buttons)
+    {
+        var picked = -1;
+
+        var win = new Window
+        {
+            WindowStyle = WindowStyle.None,
+            AllowsTransparency = true,
+            Background = Brushes.Transparent,
+            ShowInTaskbar = false,
+            ResizeMode = ResizeMode.NoResize,
+            SizeToContent = SizeToContent.Height,
+            Width = 460,
+            WindowStartupLocation = WindowStartupLocation.CenterOwner,
+            Owner = owner != null && owner.IsVisible ? owner : null
+        };
+
+        var buttonPanel = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            HorizontalAlignment = HorizontalAlignment.Right,
+            Margin = new Thickness(0, 18, 0, 0)
+        };
+
+        // 从右往左加，最后一个在左边
+        for (var i = buttons.Length - 1; i >= 0; i--)
+        {
+            var idx = i;
+            var b = new Button
+            {
+                Content = buttons[i].Text,
+                MinWidth = 96,
+                Margin = new Thickness(8, 0, 0, 0),
+                Background = buttons[i].Primary
+                    ? new SolidColorBrush(Color.FromArgb(0xCC, 0x25, 0x63, 0xEB))
+                    : new SolidColorBrush(Color.FromArgb(0x22, 0xFF, 0xFF, 0xFF)),
+                Foreground = buttons[i].Primary ? Brushes.White : TextBrush,
+                BorderBrush = buttons[i].Primary ? Brushes.Transparent : BorderBrush,
+                BorderThickness = new Thickness(buttons[i].Primary ? 0 : 1),
+                Padding = new Thickness(12, 8, 12, 8),
+                Cursor = System.Windows.Input.Cursors.Hand
+            };
+            b.Click += (_, _) => { picked = idx; win.Close(); };
+            buttonPanel.Children.Add(b);
+        }
+
+        var content = new StackPanel();
+        content.Children.Add(new TextBlock
+        {
+            Text = title,
+            Foreground = Brushes.White,
+            FontSize = 14,
+            FontWeight = FontWeights.SemiBold
+        });
+        content.Children.Add(new TextBlock
+        {
+            Text = message,
+            Foreground = SubTextBrush,
+            FontSize = 11.5,
+            TextWrapping = TextWrapping.Wrap,
+            LineHeight = 19,
+            Margin = new Thickness(0, 10, 0, 0)
+        });
+        content.Children.Add(buttonPanel);
+
+        win.Content = new Border
+        {
+            Background = PanelBrush,
+            BorderBrush = BorderBrush,
+            BorderThickness = new Thickness(1),
+            CornerRadius = new CornerRadius(14),
+            Padding = new Thickness(24, 20, 24, 20),
+            Child = content
+        };
+
+        win.KeyDown += (_, e) =>
+        {
+            if (e.Key == System.Windows.Input.Key.Escape) { picked = -1; win.Close(); }
+        };
+
+        win.Loaded += (_, _) => WindowAnim.PlayIn((FrameworkElement)win.Content);
+
+        win.ShowDialog();
+        return picked;
+    }
+
+    /// <summary>输入框弹窗：返回用户输入（取消返回 null）</summary>
+    public static string? Input(Window? owner, string title, string hint,
+        string? defaultValue = null, string? placeholder = null)
+    {
+        string? result = null;
+
+        var win = new Window
+        {
+            WindowStyle = WindowStyle.None,
+            AllowsTransparency = true,
+            Background = Brushes.Transparent,
+            ShowInTaskbar = false,
+            ResizeMode = ResizeMode.NoResize,
+            SizeToContent = SizeToContent.Height,
+            Width = 420,
+            WindowStartupLocation = WindowStartupLocation.CenterOwner,
+            Owner = owner != null && owner.IsVisible ? owner : null
+        };
+
+        var box = new TextBox
+        {
+            Text = defaultValue ?? "",
+            FontSize = 12,
+            Padding = new Thickness(10, 8, 10, 8),
+            Margin = new Thickness(0, 12, 0, 0),
+            Background = new SolidColorBrush(Color.FromArgb(0x33, 0xFF, 0xFF, 0xFF)),
+            Foreground = Brushes.White,
+            BorderBrush = new SolidColorBrush(Color.FromArgb(0x44, 0xFF, 0xFF, 0xFF)),
+            CaretBrush = Brushes.White
+        };
+        box.ToolTip = null;
+
+        var okButton = new Button
+        {
+            Content = "确定",
+            Width = 96,
+            Margin = new Thickness(0, 0, 8, 0),
+            Background = new SolidColorBrush(Color.FromArgb(0xCC, 0x25, 0x63, 0xEB)),
+            Foreground = Brushes.White,
+            BorderThickness = new Thickness(0),
+            Padding = new Thickness(0, 8, 0, 8),
+            Cursor = System.Windows.Input.Cursors.Hand
+        };
+        okButton.Click += (_, _) => { result = box.Text; win.Close(); };
+
+        var cancelButton = new Button
+        {
+            Content = "取消",
+            Width = 96,
+            Background = new SolidColorBrush(Color.FromArgb(0x22, 0xFF, 0xFF, 0xFF)),
+            Foreground = TextBrush,
+            BorderBrush = BorderBrush,
+            BorderThickness = new Thickness(1),
+            Padding = new Thickness(0, 8, 0, 8),
+            Cursor = System.Windows.Input.Cursors.Hand
+        };
+        cancelButton.Click += (_, _) => { result = null; win.Close(); };
+
+        box.KeyDown += (_, e) =>
+        {
+            if (e.Key == System.Windows.Input.Key.Enter) { result = box.Text; win.Close(); }
+        };
+
+        var buttons = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            HorizontalAlignment = HorizontalAlignment.Right,
+            Margin = new Thickness(0, 16, 0, 0)
+        };
+        buttons.Children.Add(okButton);
+        buttons.Children.Add(cancelButton);
+
+        var content = new StackPanel();
+        content.Children.Add(new TextBlock
+        {
+            Text = title,
+            Foreground = Brushes.White,
+            FontSize = 14,
+            FontWeight = FontWeights.SemiBold
+        });
+        content.Children.Add(new TextBlock
+        {
+            Text = hint,
+            Foreground = SubTextBrush,
+            FontSize = 11.5,
+            TextWrapping = TextWrapping.Wrap,
+            Margin = new Thickness(0, 8, 0, 0)
+        });
+        content.Children.Add(box);
+        if (!string.IsNullOrEmpty(placeholder))
+        {
+            content.Children.Add(new TextBlock
+            {
+                Text = placeholder,
+                Foreground = new SolidColorBrush(Color.FromArgb(0xFF, 0x6B, 0x7C, 0x92)),
+                FontSize = 9.5,
+                TextWrapping = TextWrapping.Wrap,
+                Margin = new Thickness(0, 6, 0, 0)
+            });
+        }
+        content.Children.Add(buttons);
+
+        win.Content = new Border
+        {
+            Background = PanelBrush,
+            BorderBrush = BorderBrush,
+            BorderThickness = new Thickness(1),
+            CornerRadius = new CornerRadius(14),
+            Padding = new Thickness(24, 20, 24, 20),
+            Child = content
+        };
+        win.Loaded += (_, _) =>
+        {
+            WindowAnim.PlayIn((FrameworkElement)win.Content);
+            box.Focus();
+            box.SelectAll();
+        };
+
+        win.ShowDialog();
+        return result;
+    }
+
     /// <summary>自定义内容的对话框（比如带进度的更新提示）</summary>
     public static void ShowCustom(Window? owner, string title, UIElement body,
         (string Text, bool Primary) cancel,

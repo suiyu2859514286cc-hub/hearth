@@ -289,8 +289,25 @@ public static class LaunchService
             {
                 "-Xmx" + memoryMb + "M",
                 "-Djava.library.path=" + natives,
-                "-cp", string.Join(';', cp)
             };
+
+            // 配了皮肤站就挂上 authlib-injector，离线账号也能显示皮肤
+            try
+            {
+                var agent = await AuthlibService.GetAgentArgAsync(
+                    new Progress<string>(m => progress?.Report((m, 3))), ct);
+
+                if (!string.IsNullOrEmpty(agent))
+                {
+                    args.Add(agent);
+                    // 告诉游戏皮肤站是"正版验证服务器"，不然某些版本会拒绝
+                    args.Add("-Dauthlibinjector.side=client");
+                }
+            }
+            catch { }
+
+            args.Add("-cp");
+            args.Add(string.Join(';', cp));
 
             if (root["arguments"]?["jvm"] is JsonArray jvmArgs)
             {

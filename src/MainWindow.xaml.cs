@@ -2513,29 +2513,44 @@ public partial class MainWindow : Window
 
     /// <summary>当前实例正在用的账号（启动时读一次，之后只用这份，避免多开互相干扰）</summary>
     private MicrosoftAuth.Account? _account;
+    private bool _offlineMode;
+    private bool _thirdPartyMode;
 
     /// <summary>按已保存的账号刷新界面</summary>
     private void ApplyAccount()
     {
         _account = MicrosoftAuth.Load();
-        SetAccountUI(_account != null && !string.IsNullOrEmpty(_account.Name) ? _account.Name : null);
-        _ = RefreshAvatarAsync();
+
+        if (_account != null && !string.IsNullOrEmpty(_account.Name))
+        {
+            SetAccountUI(_account.Name);
+            _ = RefreshAvatarAsync();
+            return;
+        }
+
+        // 没有正版账号，但之前用过离线名
+        var offlineName = AppSettings.Get("offlineName", "");
+        if (!string.IsNullOrEmpty(offlineName)) SetAccountUI(offlineName, offline: true);
+        else SetAccountUI(null);
     }
 
-    /// <summary>登录状态上屏。name 为空表示未登录</summary>
-    private void SetAccountUI(string? name)
+    /// <summary>登录状态上屏。name 为空表示未登录；offline 表示离线账号</summary>
+    private void SetAccountUI(string? name, bool offline = false)
     {
         var loggedIn = !string.IsNullOrEmpty(name);
         _loggedIn = loggedIn;
         _playerName = name;
+        _offlineMode = offline;
 
         if (loggedIn)
         {
+            var hint = offline ? "离线账号 · 只能玩单机" : "微软账号 · 正版";
+
             AccountName.Text = name!;
-            AccountHint.Text = "微软账号 · 正版";
+            AccountHint.Text = hint;
             AvatarText.Text = name!.Substring(0, 1).ToUpperInvariant();
             if (AccountName2 != null) AccountName2.Text = name!;
-            if (AccountHint2 != null) AccountHint2.Text = "微软账号 · 正版";
+            if (AccountHint2 != null) AccountHint2.Text = hint;
             if (MsLogo2 != null) MsLogo2.Visibility = Visibility.Collapsed;
             if (AvatarText2 != null)
             {
@@ -2543,14 +2558,31 @@ public partial class MainWindow : Window
                 AvatarText2.Visibility = Visibility.Visible;
             }
             if (TitleText != null) TitleText.Text = "欢迎回来，" + name;
-            AppSettings.Set("premiumUnlocked", "1");   // 登录正版解锁主题
-            _ = RefreshAvatarAsync();
+            if (OfflineEntry2 != null) OfflineEntry2.Visibility = Visibility.Collapsed;
+
+            if (offline)
+            {
+                // 离线：名字下面显示 UUID，让人知道这是本地身份
+                var uuid = LoginWindow.OfflineUuid(name!);
+                AccountHint.Text = "离线 · " + uuid[..8];
+                if (AccountHint2 != null) AccountHint2.Text = "离线 · " + uuid[..8];
+                // 离线不解锁主题，也没有皮肤头像
+                if (AvatarImage != null) { AvatarImage.Source = null; AvatarImage.Visibility = Visibility.Collapsed; }
+                if (AvatarImage2 != null) { AvatarImage2.Source = null; AvatarImage2.Visibility = Visibility.Collapsed; }
+                if (AvatarText != null) AvatarText.Visibility = Visibility.Visible;
+            }
+            else
+            {
+                AppSettings.Set("premiumUnlocked", "1");   // 登录正版才解锁主题
+                _ = RefreshAvatarAsync();
+            }
         }
         else
         {
             AccountName.Text = "未登录";
             AccountHint.Text = "点击登录微软账号";
             AvatarText.Text = "?";
+            if (OfflineEntry2 != null) OfflineEntry2.Visibility = Visibility.Visible;
             if (AccountName2 != null) AccountName2.Text = "未登录";
             if (AccountHint2 != null) AccountHint2.Text = "点击登录微软账号";
             if (MsLogo2 != null) MsLogo2.Visibility = Visibility.Visible;
@@ -2562,10 +2594,104 @@ public partial class MainWindow : Window
         }
     }
 
+    /// <summary>首页卡片上的「离线登录」入口</summary>
+    private void OfflineEntry_Click(object sender, MouseButtonEventArgs e)
+    {
+        e.Handled = true;   // 别再触发卡片本身的正版登录
+        ShowAccountChooser();
+    }
+
+    /// <summary>给账户窗口用：从外面唤起登录方式选择</summary>
+    public void ShowAccountChooserFromOutside() => ShowAccountChooser();
+
+    /// <summary>选一种"非微软"的登录方式</summary>
+    private void ShowAccountChooser()
+    {
+        var choice = DarkDialog.Choose(this, "不登录微软？",
+            "· 纯离线：只填个名字，能玩单机，皮肤是默认的" + Environment.NewLine +
+            "· 第三方账号：用皮肤站（LittleSkin / 红石）账号登录，能显示自己的皮肤，也能进支持皮肤站的服务器" + Environment.NewLine + Environment.NewLine +
+            "注意：这两种都进不了正版服务器（Hypixel 之类）。",
+            ("纯离线", false),
+            ("第三方账号", true),
+            ("算了", false));
+
+        if (choice < 0 || choice == 2) return;   // 取消
+
+        if (choice == 1)
+        {
+            var win = new ThirdPartyWindow { Owner = this };
+            if (win.ShowDialog() == true) ApplyThirdPartyAccount(win);
+            return;
+        }
+
+        var name = DarkDialog.Input(this, "离线登录",
+            "填一个名字，只在游戏里显示。以后用同一个名字，存档和皮肤数据能对上。",
+            AppSettings.Get("offlineName", ""),
+            "3-16 位，只能用英文字母、数字、下划线");
+
+        if (name == null) return;
+
+        name = name.Trim();
+
+        if (name.Length < 3 || name.Length > 16 ||
+            !System.Text.RegularExpressions.Regex.IsMatch(name, @"^[A-Za-z0-9_]+$"))
+        {
+            DarkDialog.Info(this, "名字不合适",
+                "要用 3 到 16 位的英文字母、数字或下划线。\n\n比如：Steve、Alex_01");
+            return;
+        }
+
+        AppSettings.Set("offlineName", name);
+        SetAccountUI(name, offline: true);
+        DarkDialog.Toast(this, "已用离线名字「" + name + "」");
+    }
+
+    /// <summary>第三方（皮肤站）账号登录成功后上屏</summary>
+    private void ApplyThirdPartyAccount(ThirdPartyWindow win)
+    {
+        AppSettings.Set("thirdPartyToken", win.AccessToken ?? "");
+        AppSettings.Set("thirdPartyName", win.AccountName ?? "");
+        AppSettings.Set("thirdPartyUuid", win.AccountUuid ?? "");
+        if (!string.IsNullOrEmpty(win.ServerUrl)) AppSettings.Set("authlibUrl", win.ServerUrl!);
+
+        _thirdPartyMode = true;
+        SetAccountUI(win.AccountName);
+
+        DarkDialog.Toast(this, "已用皮肤站账号「" + win.AccountName + "」登录");
+    }
+
     private async void Account_Click(object sender, MouseButtonEventArgs e)
     {
         if (_loggedIn)
         {
+            // 离线 / 第三方账号：跟正版一样开账户页，里面能看到信息、退出、换方式
+            if (_offlineMode || _thirdPartyMode)
+            {
+                var offlineWin = new AccountWindow(_playerName, _thirdPartyMode) { Owner = this };
+                offlineWin.ShowDialog();
+
+                if (offlineWin.LoggedOut)
+                {
+                    if (_thirdPartyMode)
+                    {
+                        AppSettings.Set("thirdPartyToken", "");
+                        AppSettings.Set("thirdPartyName", "");
+                        AppSettings.Set("thirdPartyUuid", "");
+                    }
+                    else
+                    {
+                        // 离线名字也要清掉，不然下次启动又自动登回离线
+                        AppSettings.Set("offlineName", "");
+                    }
+
+                    _thirdPartyMode = false;
+                    _offlineMode = false;
+                    SetAccountUI(null);
+                    DarkDialog.Toast(this, "已退出");
+                }
+                return;
+            }
+
             var win = new AccountWindow { Owner = this };
             win.ShowDialog();
 
@@ -2576,7 +2702,10 @@ public partial class MainWindow : Window
 
         var login = new LoginWindow { Owner = this };
         if (login.ShowDialog() == true)
-            SetAccountUI(login.AccountName);
+        {
+            var isOffline = string.IsNullOrEmpty(login.AccessToken);
+            SetAccountUI(login.AccountName, offline: isOffline);
+        }
     }
 
     /// <summary>拉真实皮肤头像</summary>
@@ -2620,6 +2749,20 @@ public partial class MainWindow : Window
             LaunchProgress.Visibility = Visibility.Visible;
             await Task.Delay(1600);
             LaunchProgress.Visibility = Visibility.Collapsed;
+            return;
+        }
+
+        // 没登录启动不了：游戏需要一个名字，也要知道用谁的身份
+        if (string.IsNullOrWhiteSpace(_playerName))
+        {
+            var goLogin = DarkDialog.Confirm(this, "还没登录",
+                "启动游戏之前要先选一种登录方式：" + Environment.NewLine + Environment.NewLine +
+                "· 微软正版账号：能进正版服务器" + Environment.NewLine +
+                "· 第三方账号：用皮肤站账号，能显示自己的皮肤" + Environment.NewLine +
+                "· 纯离线：只填个名字，只能玩单机",
+                "去登录", "算了", false);
+
+            if (goLogin) ShowAccountChooser();
             return;
         }
 

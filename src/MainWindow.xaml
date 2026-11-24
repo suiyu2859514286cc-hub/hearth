@@ -268,6 +268,14 @@
                                                            FontWeight="SemiBold" Foreground="#FFFFFF"/>
                                                 <TextBlock x:Name="AccountHint2" Text="点击登录微软账号" FontSize="8"
                                                            Foreground="#8FA8C4" Margin="0,1,0,0"/>
+                                                <Border x:Name="OfflineEntry2" Margin="0,4,0,0" Padding="6,2"
+                                                        CornerRadius="4" Background="#333B82F6"
+                                                        BorderBrush="#663B82F6" BorderThickness="1"
+                                                        Cursor="Hand" MouseLeftButtonUp="OfflineEntry_Click"
+                                                        HorizontalAlignment="Left">
+                                                    <TextBlock Text="离线 / 第三方登录" FontSize="8"
+                                                               Foreground="#9CC8FF"/>
+                                                </Border>
                                             </StackPanel>
                                             <!-- 箭头 -->
                                             <TextBlock Grid.Column="2" Text="›" FontSize="13" Foreground="#7A8BA8"

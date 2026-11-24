@@ -466,6 +466,35 @@ public partial class SettingsView : UserControl
 
         PageHost.Children.Add(Card("启动器", launcher));
 
+        // 皮肤站：离线账号靠它显示皮肤
+        var skin = new StackPanel();
+        var urlBox = new TextBox
+        {
+            Text = AuthlibService.ServerUrl,
+            FontSize = 10.5,
+            Padding = new Thickness(8, 6, 8, 6),
+            Background = new SolidColorBrush(Color.FromArgb(0x22, 0xFF, 0xFF, 0xFF)),
+            Foreground = Brushes.White,
+            BorderBrush = new SolidColorBrush(Color.FromArgb(0x44, 0xFF, 0xFF, 0xFF)),
+            Width = 340,
+            HorizontalAlignment = HorizontalAlignment.Left
+        };
+        urlBox.TextChanged += (_, _) => AppSettings.Set("authlibUrl", urlBox.Text.Trim());
+
+        var urlRow = new StackPanel { Orientation = Orientation.Horizontal };
+        var urlLabel = Text("皮肤站地址", 10.5, "#B9C9DC");
+        urlLabel.VerticalAlignment = VerticalAlignment.Center;
+        urlLabel.Margin = new Thickness(0, 0, 10, 0);
+        urlRow.Children.Add(urlLabel);
+        urlRow.Children.Add(urlBox);
+        skin.Children.Add(urlRow);
+
+        skin.Children.Add(Text("填第三方皮肤站的地址，比如 https://littleskin.cn/api/yggdrasil\n" +
+                               "填了之后启动游戏会自动挂载 authlib-injector，离线账号也能显示皮肤站的皮肤",
+            9.5, "#6B7C92"));
+
+        PageHost.Children.Add(Card("皮肤站（离线换皮肤）", skin));
+
         var other = new StackPanel();
         var pathText = Text(VersionService.McDir, 10, "#8FA0B8");
         pathText.Margin = new Thickness(0, 6, 0, 0);

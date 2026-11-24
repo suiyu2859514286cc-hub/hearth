@@ -24,6 +24,82 @@ public partial class LoginWindow : Window
         Closed += (_, _) => _cts?.Cancel();
     }
 
+    private void OfflineEntry_Click(object sender, RoutedEventArgs e)
+    {
+        OfflinePanel.Visibility = Visibility.Visible;
+        FooterHint.Text = "离线模式下只有这个名字跟着你";
+        OfflineNameBox.Text = AppSettings.Get("offlineName", "");
+        OfflineNameBox.Focus();
+        OfflineNameBox.SelectAll();
+
+        // 停止正版流程
+        _cts?.Cancel();
+        SetStatus("已切换到离线登录", "#8FA0B8");
+    }
+
+    private void OfflineCancel_Click(object sender, RoutedEventArgs e)
+    {
+        OfflinePanel.Visibility = Visibility.Collapsed;
+        FooterHint.Text = "登录成功后可游玩正版服务器";
+    }
+
+    private void OfflineConfirm_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            var name = (OfflineNameBox.Text ?? "").Trim();
+
+            if (name.Length < 3)
+            {
+                OfflineStatus.Text = "名字至少 3 个字符";
+                return;
+            }
+
+            if (name.Length > 16)
+            {
+                OfflineStatus.Text = "名字最多 16 个字符";
+                return;
+            }
+
+            if (!System.Text.RegularExpressions.Regex.IsMatch(name, @"^[A-Za-z0-9_]+$"))
+            {
+                OfflineStatus.Text = "只能用英文字母、数字和下划线（不支持中文）";
+                return;
+            }
+
+            OfflineStatus.Text = "";
+            AppSettings.Set("offlineName", name);
+
+            AccountName = name;
+            AccountUuid = OfflineUuid(name);
+            AccessToken = null;      // 离线没有令牌
+
+            // 不是以 ShowDialog 打开时不能设 DialogResult，直接关
+            try { DialogResult = true; }
+            catch { }
+
+            Close();
+        }
+        catch (Exception ex)
+        {
+            OfflineStatus.Text = "出错了：" + ex.Message;
+        }
+    }
+
+    /// <summary>离线模式的 UUID 算法，跟原版一致（MD5 of "OfflinePlayer:" + name）</summary>
+    public static string OfflineUuid(string name)
+    {
+        using var md5 = System.Security.Cryptography.MD5.Create();
+        var bytes = md5.ComputeHash(System.Text.Encoding.UTF8.GetBytes("OfflinePlayer:" + name));
+
+        // 按 UUID 风格设置版本位，跟官方一致
+        bytes[6] = (byte)((bytes[6] & 0x0F) | 0x30);
+        bytes[8] = (byte)((bytes[8] & 0x3F) | 0x80);
+
+        var hex = Convert.ToHexString(bytes).ToLowerInvariant();
+        return hex[..8] + "-" + hex[8..12] + "-" + hex[12..16] + "-" + hex[16..20] + "-" + hex[20..];
+    }
+
     private async Task StartLoginAsync()
     {
         if (string.IsNullOrEmpty(MicrosoftAuth.ClientId))

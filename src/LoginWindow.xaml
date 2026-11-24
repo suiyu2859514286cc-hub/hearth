@@ -70,7 +70,43 @@
                 <TextBlock x:Name="StatusText" Text="正在获取验证码…" FontSize="11" Foreground="#A9BCCF" HorizontalAlignment="Center" Margin="0,18,0,0"/>
             </StackPanel>
 
-            <TextBlock Grid.Row="2" Text="登录成功后可游玩正版服务器" FontSize="9.5" Foreground="#6B7789"/>
+            <StackPanel Grid.Row="2">
+                <Grid>
+                    <TextBlock x:Name="FooterHint" Text="登录成功后可游玩正版服务器" FontSize="9.5"
+                               Foreground="#6B7789" VerticalAlignment="Center"/>
+                    <Button x:Name="OfflineEntry" Content="没有正版账号？用离线登录 ›"
+                            HorizontalAlignment="Right" FontSize="9.5" Padding="0" BorderThickness="0"
+                            Background="Transparent" Foreground="#7A9BC8" Cursor="Hand"
+                            Click="OfflineEntry_Click"/>
+                </Grid>
+
+                <!-- 离线登录面板 -->
+                <StackPanel x:Name="OfflinePanel" Visibility="Collapsed" Margin="0,10,0,0">
+                    <TextBlock Text="离线模式：只改游戏里显示的名字，不能进正版服务器"
+                               FontSize="9.5" Foreground="#8FA8C4" TextWrapping="Wrap"/>
+                    <Grid Margin="0,8,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBox x:Name="OfflineNameBox" Grid.Column="0" Height="34" FontSize="12"
+                                 Padding="10,0" VerticalContentAlignment="Center"
+                                 Background="#33FFFFFF" Foreground="#FFFFFF" BorderBrush="#55FFFFFF"
+                                 MaxLength="16" ToolTip="{x:Null}"/>
+                        <Button Grid.Column="1" Content="用这个名字进游戏" Margin="8,0,0,0" Height="34"
+                                Padding="12,0" FontSize="10.5" Cursor="Hand"
+                                Background="#CC2563EB" BorderThickness="0" Foreground="#FFFFFF"
+                                Click="OfflineConfirm_Click"/>
+                        <Button Grid.Column="2" Content="取消" Margin="8,0,0,0" Height="34"
+                                Padding="12,0" FontSize="10.5" Cursor="Hand"
+                                Background="#22FFFFFF" BorderBrush="#33FFFFFF" BorderThickness="1"
+                                Foreground="#D6E2F0" Click="OfflineCancel_Click"/>
+                    </Grid>
+                    <TextBlock x:Name="OfflineStatus" Text="" FontSize="9.5" Foreground="#F87171"
+                               Margin="0,6,0,0" TextWrapping="Wrap"/>
+                </StackPanel>
+            </StackPanel>
         </Grid>
     </Border>
 </Window>
