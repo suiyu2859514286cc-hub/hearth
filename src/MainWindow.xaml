@@ -206,7 +206,7 @@
                                 <!-- 你知道吗 -->
                                 <Border x:Name="QuoteBox" Canvas.Left="223" Canvas.Top="84" Width="665" Height="40"
                                         CornerRadius="8" Background="#33101720" BorderBrush="#26FFFFFF" BorderThickness="1"
-                                        Cursor="Hand" MouseLeftButtonUp="QuoteBox_Click" ToolTip="点一下换一条">
+                                        Cursor="Hand" MouseLeftButtonUp="QuoteBox_Click">
                                     <Border.Style>
                                         <Style TargetType="Border">
                                             <Style.Triggers>
@@ -319,17 +319,55 @@
                                 <Border x:Name="SidePanel" Canvas.Left="915" Canvas.Top="22" Width="221" Height="642"
                                         Style="{StaticResource GlassPanel}" Padding="12,12">
                                     <Viewbox Stretch="Uniform" StretchDirection="Both" HorizontalAlignment="Stretch" VerticalAlignment="Top">
-                                    <StackPanel Width="197">
-                                        <TextBlock Text="上次游玩" FontSize="9.5" Foreground="#B9C9DC" Margin="0,0,0,6"/>
-                                        <Border Style="{StaticResource GlassCard}" Padding="11,10">
-                                            <StackPanel>
-                                                <TextBlock Text="1.21.4" FontSize="17" FontWeight="Bold" Foreground="#FFFFFF"/>
-                                                <TextBlock Text="原版 · Java 21" FontSize="9" Foreground="#B9C9DC" Margin="0,2,0,0"/>
-                                            </StackPanel>
-                                        </Border>
-                                        <TextBlock Text="历史游玩" FontSize="9.5" Foreground="#B9C9DC" Margin="0,14,0,6"/>
-                                        <StackPanel x:Name="HistoryList"/>
-                                    </StackPanel>
+                                    <Grid Width="197" Height="600">
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="*"/>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="*"/>
+                                        </Grid.RowDefinitions>
+
+                                        <!-- 上半：整合包推荐 -->
+                                        <Grid Grid.Row="0">
+                                            <Grid.RowDefinitions>
+                                                <RowDefinition Height="Auto"/>
+                                                <RowDefinition Height="*"/>
+                                            </Grid.RowDefinitions>
+                                            <Grid Margin="0,0,0,6">
+                                                <TextBlock Text="整合包推荐" FontSize="9.5" Foreground="#B9C9DC"/>
+                                                <Button x:Name="PackRefreshBtn" Content="换一批" HorizontalAlignment="Right"
+                                                        FontSize="8.5" Padding="6,1" Cursor="Hand" BorderThickness="0"
+                                                        Background="Transparent" Foreground="#7A9BC8"
+                                                        Click="PackRefresh_Click"/>
+                                            </Grid>
+                                            <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto"
+                                                          HorizontalScrollBarVisibility="Disabled">
+                                                <StackPanel x:Name="PackList"/>
+                                            </ScrollViewer>
+                                        </Grid>
+
+                                        <!-- 中间分隔 -->
+                                        <Border Grid.Row="1" Height="1" Margin="0,8,0,8"
+                                                Background="#33FFFFFF"/>
+
+                                        <!-- 下半：服务器推荐 -->
+                                        <Grid Grid.Row="2">
+                                            <Grid.RowDefinitions>
+                                                <RowDefinition Height="Auto"/>
+                                                <RowDefinition Height="*"/>
+                                            </Grid.RowDefinitions>
+                                            <Grid Margin="0,0,0,6">
+                                                <TextBlock Text="服务器推荐" FontSize="9.5" Foreground="#B9C9DC"/>
+                                                <Button x:Name="ServerRefreshBtn" Content="换一批" HorizontalAlignment="Right"
+                                                        FontSize="8.5" Padding="6,1" Cursor="Hand" BorderThickness="0"
+                                                        Background="Transparent" Foreground="#7A9BC8"
+                                                        Click="ServerRefresh_Click"/>
+                                            </Grid>
+                                            <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto"
+                                                          HorizontalScrollBarVisibility="Disabled">
+                                                <StackPanel x:Name="ServerList"/>
+                                            </ScrollViewer>
+                                        </Grid>
+                                    </Grid>
                                     </Viewbox>
                                 </Border>
                             </Canvas>
@@ -347,8 +385,7 @@
                                 <Button x:Name="FolderBtn" Content="📁 默认 ▾" Click="FolderBtn_Click"
                                         Style="{StaticResource Ghost}" FontSize="10.5" Padding="9,4" Margin="0,0,10,0"
                                         Background="#33101720" BorderBrush="#40FFFFFF" Foreground="#E8F0FA"
-                                        FocusVisualStyle="{x:Null}"
-                                        ToolTip="切换游戏文件夹"/>
+                                        FocusVisualStyle="{x:Null}"/>
                                 <TextBlock Text="版本选择" FontSize="14" FontWeight="Bold" Foreground="#FFFFFF"/>
                                 <TextBlock x:Name="VersionCount" Text="" FontSize="10" Foreground="#B9C9DC" Margin="8,2,0,0"/>
                             </StackPanel>
@@ -422,11 +459,11 @@
                                     <TextBox x:Name="ResourceQuery" Grid.Column="0" Height="32" FontSize="11.5"
                                              VerticalContentAlignment="Center" Padding="8,0"
                                              Background="#4DFFFFFF" Foreground="#FFFFFF" BorderBrush="#55FFFFFF"
-                                             ToolTip="搜索名称，比如 sodium"/>
+                                             />
                                     <TextBox x:Name="ResourceVersion" Grid.Column="1" Width="110" Height="32" FontSize="11"
                                              Margin="8,0,0,0" VerticalContentAlignment="Center" Padding="8,0"
                                              Background="#4DFFFFFF" Foreground="#FFFFFF" BorderBrush="#55FFFFFF"
-                                             ToolTip="游戏版本，留空不限"/>
+                                             />
                                     <Button x:Name="ResourceSearchBtn" Grid.Column="2" Content="搜索" Width="72" Height="32"
                                             Margin="8,0,0,0" FontSize="11" Cursor="Hand"
                                             Background="#CC2563EB" BorderBrush="#66A5D0FF" Foreground="#FFFFFF"
@@ -457,7 +494,7 @@
                             HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,22,22"
                             Background="#F00C1118" BorderBrush="#55FFFFFF" BorderThickness="1"
                             Cursor="Hand" MouseLeftButtonUp="DownloadBall_Click"
-                            ToolTip="点一下看下载详情">
+                            >
                         <Border.Effect>
                             <DropShadowEffect BlurRadius="18" ShadowDepth="3" Opacity="0.55"/>
                         </Border.Effect>

@@ -1069,6 +1069,11 @@ public partial class MainWindow : Window
             g.Children.Add(arrow);
 
             card.Child = g;
+
+            // 点卡片进这个 mod 的下载页
+            var captured = m;
+            card.Cursor = Cursors.Hand;
+            card.MouseLeftButtonUp += (_, _) => OpenModDownload(captured);
             card.MouseEnter += (_, _) =>
             {
                 card.Background = new SolidColorBrush(Color.FromArgb(0xF0, 0x16, 0x22, 0x33));
@@ -1083,6 +1088,31 @@ public partial class MainWindow : Window
             };
             ModGrid.Children.Add(card);
         }
+    }
+
+    /// <summary>推荐卡片点进去 → 打开这个 mod 的下载窗口</summary>
+    private void OpenModDownload(ModrinthService.ModInfo mod)
+    {
+        if (string.IsNullOrEmpty(mod.Id))
+        {
+            DarkDialog.Toast(this, "这个项目暂时打不开，去「下载 → 资源中心」搜一下");
+            return;
+        }
+
+        var hit = new ModrinthService.SearchHit(
+            mod.Id,
+            mod.Slug,
+            mod.Title,
+            mod.Description,
+            mod.IconUrl,
+            mod.Downloads,
+            "",
+            mod.Categories ?? Array.Empty<string>(),
+            "mod",
+            Array.Empty<string>());
+
+        var win = new ResourceDownloadWindow(hit, null, _selectedVersion) { Owner = this };
+        win.ShowDialog();
     }
 
     private static string FormatNum(long n)
@@ -1189,38 +1219,209 @@ public partial class MainWindow : Window
     }
 
     // ===== 历史游玩 =====
-    private void BuildHistory()
+    // ===== 右侧栏：整合包推荐 + 服务器推荐 =====
+    private void BuildHistory() => BuildSidePanel();
+
+    private async void BuildSidePanel()
     {
-        if (HistoryList == null) return;
-        var hist = new (string Ver, string Ago)[]
-        {
-            ("1.21.4", "2 小时前"),
-            ("1.20.1", "昨天"),
-            ("1.12.2", "3 天前"),
-            ("1.21.1", "上周"),
-        };
-        foreach (var (ver, ago) in hist)
-        {
-            var row = new Border
-            {
-                Height = 34,
-                Background = new SolidColorBrush(Color.FromArgb(0x26, 0xFF, 0xFF, 0xFF)),
-                CornerRadius = new CornerRadius(7),
-                Margin = new Thickness(0, 0, 0, 5),
-                Padding = new Thickness(10, 0, 10, 0),
-                Cursor = Cursors.Hand
-            };
-            var g = new Grid();
-            g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-            g.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-            g.Children.Add(new TextBlock { Text = ver, FontSize = 11, FontWeight = FontWeights.SemiBold, Foreground = Brushes.White, VerticalAlignment = VerticalAlignment.Center });
-            var agoText = new TextBlock { Text = ago, FontSize = 9, Foreground = new SolidColorBrush(Color.FromRgb(0x8F, 0xA0, 0xB8)), VerticalAlignment = VerticalAlignment.Center };
-            Grid.SetColumn(agoText, 1);
-            g.Children.Add(agoText);
-            row.Child = g;
-            HistoryList.Children.Add(row);
-        }
+        BuildPacks();
+        BuildServers();
+        await Task.CompletedTask;
     }
+
+    private int _packOffset;
+
+    private void PackRefresh_Click(object sender, RoutedEventArgs e)
+    {
+        _packOffset = (_packOffset + 8) % 80;
+        BuildPacks();
+    }
+
+    private async void BuildPacks()
+    {
+        if (PackList == null) return;
+        PackList.Children.Clear();
+
+        PackList.Children.Add(new TextBlock
+        {
+            Text = "加载中…",
+            FontSize = 9,
+            Foreground = new SolidColorBrush(Color.FromRgb(0x59, 0x6C, 0x84)),
+            Margin = new Thickness(2, 2, 0, 0)
+        });
+
+        var packs = await ModrinthService.GetPopularAsync("modpack", 8, _packOffset);
+        PackList.Children.Clear();
+
+        if (packs.Count == 0)
+        {
+            PackList.Children.Add(new TextBlock
+            {
+                Text = "暂时拉不到推荐",
+                FontSize = 9,
+                Foreground = new SolidColorBrush(Color.FromRgb(0x59, 0x6C, 0x84)),
+                Margin = new Thickness(2, 2, 0, 0)
+            });
+            return;
+        }
+
+        foreach (var pack in packs)
+            PackList.Children.Add(BuildPackRow(pack));
+    }
+
+    private Border BuildPackRow(ModrinthService.ModInfo pack)
+    {
+        var row = new Border
+        {
+            Background = new SolidColorBrush(Color.FromArgb(0x22, 0xFF, 0xFF, 0xFF)),
+            CornerRadius = new CornerRadius(7),
+            Padding = new Thickness(8, 6, 8, 6),
+            Margin = new Thickness(0, 0, 0, 5),
+            Cursor = Cursors.Hand
+        };
+
+        var g = new Grid();
+        g.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+
+        var icon = new Border
+        {
+            Width = 24, Height = 24, CornerRadius = new CornerRadius(6),
+            Background = new SolidColorBrush(Color.FromArgb(0x33, 0xFF, 0xFF, 0xFF)),
+            ClipToBounds = true
+        };
+        if (!string.IsNullOrEmpty(pack.IconUrl))
+        {
+            try
+            {
+                icon.Child = new Image
+                {
+                    Source = new System.Windows.Media.Imaging.BitmapImage(new Uri(pack.IconUrl)),
+                    Stretch = Stretch.UniformToFill
+                };
+            }
+            catch { }
+        }
+        g.Children.Add(icon);
+
+        var info = new StackPanel { Margin = new Thickness(8, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center };
+        info.Children.Add(new TextBlock
+        {
+            Text = pack.Title, FontSize = 10, FontWeight = FontWeights.SemiBold, Foreground = Brushes.White,
+            TextTrimming = TextTrimming.CharacterEllipsis
+        });
+        info.Children.Add(new TextBlock
+        {
+            Text = FormatNum(pack.Downloads) + " 次下载", FontSize = 8.5,
+            Foreground = new SolidColorBrush(Color.FromRgb(0x7A, 0x8B, 0xA8)), Margin = new Thickness(0, 1, 0, 0)
+        });
+        Grid.SetColumn(info, 1);
+        g.Children.Add(info);
+
+        row.Child = g;
+        row.MouseEnter += (_, _) => row.Background = new SolidColorBrush(Color.FromArgb(0x40, 0x59, 0xA8, 0xFF));
+        row.MouseLeave += (_, _) => row.Background = new SolidColorBrush(Color.FromArgb(0x22, 0xFF, 0xFF, 0xFF));
+        row.MouseLeftButtonUp += (_, _) => OpenModDownload(pack);
+
+        return row;
+    }
+
+    private async void BuildServers()
+    {
+        if (ServerList == null) return;
+        ServerList.Children.Clear();
+
+        var servers = ServerCatalog.Pick(8, _serverRng);
+        foreach (var srv in servers)
+            ServerList.Children.Add(BuildServerRow(srv));
+
+        await Task.CompletedTask;
+    }
+
+    private readonly Random _serverRng = new();
+
+    private void ServerRefresh_Click(object sender, RoutedEventArgs e) => BuildServers();
+
+    /// <summary>点服务器 → 介绍页</summary>
+    private void ShowServerInfo(ServerCatalog.Server srv)
+    {
+        var body = new StackPanel();
+
+        body.Children.Add(new TextBlock
+        {
+            Text = srv.Host,
+            FontSize = 12,
+            Foreground = new SolidColorBrush(Color.FromRgb(0x9C, 0xC8, 0xFF)),
+            Margin = new Thickness(0, 0, 0, 10)
+        });
+
+        body.Children.Add(new TextBlock
+        {
+            Text = srv.Description,
+            FontSize = 11,
+            Foreground = new SolidColorBrush(Color.FromRgb(0xC8, 0xD6, 0xE6)),
+            TextWrapping = TextWrapping.Wrap,
+            LineHeight = 19
+        });
+
+        var meta = new TextBlock
+        {
+            Text = "类型：" + srv.Note + "\n版本：" + srv.Version + "\n人数：" + srv.Players,
+            FontSize = 10,
+            Foreground = new SolidColorBrush(Color.FromRgb(0x7A, 0x8B, 0xA8)),
+            Margin = new Thickness(0, 12, 0, 0),
+            LineHeight = 18
+        };
+        body.Children.Add(meta);
+
+        DarkDialog.ShowCustom(this, srv.Name, body,
+            ("关闭", false),
+            ("复制地址", true),
+            ok =>
+            {
+                if (!ok) return;
+                try
+                {
+                    Clipboard.SetText(srv.Host);
+                    DarkDialog.Toast(this, "已复制 " + srv.Host);
+                }
+                catch { }
+            });
+    }
+
+    private Border BuildServerRow(ServerCatalog.Server srv)
+    {
+        var row = new Border
+        {
+            Background = new SolidColorBrush(Color.FromArgb(0x22, 0xFF, 0xFF, 0xFF)),
+            CornerRadius = new CornerRadius(7),
+            Padding = new Thickness(8, 6, 8, 6),
+            Margin = new Thickness(0, 0, 0, 5),
+            Cursor = Cursors.Hand
+        };
+
+        var info = new StackPanel();
+        info.Children.Add(new TextBlock
+        {
+            Text = srv.Name, FontSize = 10, FontWeight = FontWeights.SemiBold, Foreground = Brushes.White
+        });
+        info.Children.Add(new TextBlock
+        {
+            Text = srv.Host + "  ·  " + srv.Note, FontSize = 8.5,
+            Foreground = new SolidColorBrush(Color.FromRgb(0x7A, 0x8B, 0xA8)), Margin = new Thickness(0, 1, 0, 0),
+            TextTrimming = TextTrimming.CharacterEllipsis
+        });
+        row.Child = info;
+
+        row.MouseEnter += (_, _) => row.Background = new SolidColorBrush(Color.FromArgb(0x40, 0x59, 0xA8, 0xFF));
+        row.MouseLeave += (_, _) => row.Background = new SolidColorBrush(Color.FromArgb(0x22, 0xFF, 0xFF, 0xFF));
+        row.MouseLeftButtonUp += (_, _) => ShowServerInfo(srv);
+
+        return row;
+    }
+
+
+    private string? _pendingSelectVersion;
 
     // ===== 切换版本转场 =====
     private string? _selectedVersion;
@@ -2497,6 +2698,9 @@ public partial class MainWindow : Window
 
         if (ok)
         {
+            PlayHistory.Add(versionId);
+            BuildHistory();
+
             var count = ThemeService.CountLaunch();
             ProgressText.Text = message + "  （累计启动 " + count + " 次）";
             DarkDialog.Toast(this, "启动成功");

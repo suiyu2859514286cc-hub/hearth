@@ -305,9 +305,8 @@ public partial class SettingsView : UserControl
             Child = stack
         };
 
-        card.ToolTip = unlocked
-            ? (active ? "正在使用这个主题" : "点一下换成这个主题")
-            : "还不知道怎么解锁";
+        // 只有已解锁的才给提示，内容是这个主题怎么来的；未解锁的不弹任何东西
+        if (unlocked) card.ToolTip = ThemeService.Hint(theme);
 
         card.MouseLeftButtonUp += (_, _) =>
         {

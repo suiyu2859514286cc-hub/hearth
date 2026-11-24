@@ -11,7 +11,7 @@ namespace BlockLauncher;
 public static class ModrinthService
 {
     public record ModInfo(string Title, string Description, long Downloads,
-        string IconUrl, string[] Categories, string Slug);
+        string IconUrl, string[] Categories, string Slug, string Id = "");
 
     private static readonly string CacheDir =
         Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Hearth");
@@ -144,6 +144,45 @@ public static class ModrinthService
     }
 
     /// <summary>拿热门模组：优先读当天缓存，没有就请求 Modrinth</summary>
+    /// <summary>按类型拉热门项目（mod / modpack / resourcepack / shader）</summary>
+    public static async Task<List<ModInfo>> GetPopularAsync(string projectType, int limit = 12, int offset = 0)
+    {
+        try
+        {
+            var url = "https://api.modrinth.com/v2/search" +
+                      "?limit=" + limit +
+                      "&offset=" + offset +
+                      "&index=downloads" +
+                      "&facets=" + Uri.EscapeDataString("[[\"project_type:" + projectType + "\"]]");
+            var json = await Http.GetStringAsync(url);
+            using var doc = JsonDocument.Parse(json);
+            var list = new List<ModInfo>();
+
+            foreach (var hit in doc.RootElement.GetProperty("hits").EnumerateArray())
+            {
+                var cats = new List<string>();
+                if (hit.TryGetProperty("categories", out var c))
+                    foreach (var x in c.EnumerateArray()) cats.Add(x.GetString() ?? "");
+
+                list.Add(new ModInfo(
+                    hit.GetProperty("title").GetString() ?? "?",
+                    hit.TryGetProperty("description", out var de) ? (de.GetString() ?? "") : "",
+                    hit.TryGetProperty("downloads", out var d) ? d.GetInt64() : 0,
+                    hit.TryGetProperty("icon_url", out var ic) ? (ic.GetString() ?? "") : "",
+                    cats.ToArray(),
+                    hit.TryGetProperty("slug", out var sl) ? (sl.GetString() ?? "") : "",
+                    hit.TryGetProperty("project_id", out var pid) ? (pid.GetString() ?? "") : ""
+                ));
+            }
+
+            return list;
+        }
+        catch
+        {
+            return new List<ModInfo>();
+        }
+    }
+
     public static async Task<List<ModInfo>> GetPopularModsAsync(int limit = 24)
     {
         // 1) 缓存：当天有效
@@ -183,7 +222,8 @@ public static class ModrinthService
                     hit.TryGetProperty("downloads", out var d) ? d.GetInt64() : 0,
                     hit.TryGetProperty("icon_url", out var ic) ? (ic.GetString() ?? "") : "",
                     cats.ToArray(),
-                    hit.GetProperty("slug").GetString() ?? ""
+                    hit.GetProperty("slug").GetString() ?? "",
+                    hit.TryGetProperty("project_id", out var pid) ? (pid.GetString() ?? "") : ""
                 ));
             }
 

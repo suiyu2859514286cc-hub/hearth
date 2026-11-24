@@ -111,12 +111,7 @@ public partial class ResourceDownloadWindow : Window
             _ => _currentVersion ?? "当前版本"
         };
         _targetBtn.Content = "下载到 " + label + "  ▾";
-        _targetBtn.ToolTip = _target switch
-        {
-            "global" => VersionService.McDir,
-            "custom" => _customPath,
-            _ => string.IsNullOrEmpty(_currentVersion) ? VersionService.McDir : VersionMeta.GameDir(_currentVersion)
-        };
+        // 原路径改到按钮文字里已经能看出来，不再另挂悬停提示
     }
 
     /// <summary>目标选择菜单：当前版本 / 其它已装版本 / 全局 / 浏览文件夹</summary>
