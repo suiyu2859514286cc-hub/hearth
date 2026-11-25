@@ -29,7 +29,6 @@ public static class ThemeService
         new("collector","收藏家", "#A855F7", "versions10"),
         new("wanderer", "远行",   "#65A30D", "folders3"),
         new("artisan",  "匠人",   "#EA580C", "packs2"),
-        new("konami",   "秘技",   "#FACC15", "konami"),
 
         // 限定节日
         new("snow",      "雪夜", "#BAE6FD", "festival:snow"),
@@ -37,8 +36,8 @@ public static class ThemeService
         new("newyear",   "新岁", "#EF4444", "festival:newyear"),
         new("valentine", "心动", "#F43F5E", "festival:valentine"),
 
-        // 特殊：渐变
-        new("rainbow", "五彩斑斓", "", "feedback"),
+        // 原来的「五彩斑斓」（发反馈解锁）换成这个：金色「秘技」，靠彩蛋解锁
+        new("konami", "秘技", "#FACC15", "konami"),
     };
 
     public static ThemeItem Current =>
