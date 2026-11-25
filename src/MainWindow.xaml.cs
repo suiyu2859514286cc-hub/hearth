@@ -2121,6 +2121,13 @@ public partial class MainWindow : Window
         SetActiveNav(NavSettings);
     }
 
+    /// <summary>解锁新主题后，设置页正开着就重建一下列表</summary>
+    public void RefreshSettings()
+    {
+        if (SettingsView.Visibility == Visibility.Visible)
+            SettingsView.Refresh();
+    }
+
     private void Help_Click(object sender, RoutedEventArgs e)
     {
         var win = new FeedbackWindow();

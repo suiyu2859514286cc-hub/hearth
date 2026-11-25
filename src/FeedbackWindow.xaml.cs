@@ -62,6 +62,9 @@ public partial class FeedbackWindow : Window
                 if (main is MainWindow mw) mw.ApplyTheme();
             }
         }
+
+        // 设置页可能正开着：重建一下，让「五彩斑斓」出现在列表里
+        if (main is MainWindow mainWindow) mainWindow.RefreshSettings();
     }
 
     private void Send_Click(object sender, RoutedEventArgs e)

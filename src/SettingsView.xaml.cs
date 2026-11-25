@@ -92,8 +92,11 @@ public partial class SettingsView : UserControl
         if (sender is Button b && b.Tag is string tag) ShowPage(tag);
     }
 
+    private string _page = "launch";
+
     private void ShowPage(string page)
     {
+        _page = page;
         foreach (var b in new[] { NavLaunch, NavUI, NavNet, NavOther })
         {
             if (b == null) continue;
@@ -113,6 +116,9 @@ public partial class SettingsView : UserControl
     }
 
     public void SelectPage(string page) => ShowPage(page);
+
+    /// <summary>主题解锁后重建当前页，让新主题出现在列表里</summary>
+    public void Refresh() => ShowPage(_page);
 
     // ===== 联机（樱花内网穿透）=====
 
