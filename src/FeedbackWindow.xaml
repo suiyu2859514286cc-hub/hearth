@@ -61,6 +61,8 @@
                          AcceptsReturn="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto"
                          Height="210" VerticalContentAlignment="Top"/>
                 <TextBlock x:Name="StatusText" Text="" FontSize="10" Foreground="#8FA0B8" Margin="0,8,0,0"/>
+                <TextBlock Text="这扇窗藏着一串老密码：上上下下、左右左右，最后是 B 和 A。"
+                           FontSize="9" Foreground="#5A6B82" Margin="0,6,0,0" TextWrapping="Wrap"/>
             </StackPanel>
 
             <Grid Grid.Row="2" Margin="0,14,0,0">

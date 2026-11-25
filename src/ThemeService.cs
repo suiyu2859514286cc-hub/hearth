@@ -187,7 +187,7 @@ public static class ThemeService
         "festival:newyear" => "钟声敲响的那一刻，你还在。",
         "festival:valentine" => "有些日子，天是粉的。",
         "feedback" => "说一句话给做这个东西的人听。",
-        "konami" => "有人在某个写反馈的地方，敲过一串很老的密码。",
+        "konami" => "上上下下，左右左右，最后 B 和 A。去「发个反馈」那扇窗里敲。",
         var n when int.TryParse(n, out var need) => need switch
         {
             5 => "炉火刚点起来的时候。",
