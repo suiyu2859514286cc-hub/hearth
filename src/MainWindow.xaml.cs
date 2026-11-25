@@ -608,14 +608,14 @@ public partial class MainWindow : Window
         // 所有图形都画在 4–20 这个范围里（24×24 视框，四周留 4 个单位给描边和留白）
         path.Data = Geometry.Parse(loader switch
         {
-            // Forge：铁砧（顶面宽、腰细、底座宽）
-            "Forge" => "M4,6 L20,6 L20,9 L16,9 L16,13 L18.5,15.5 L18.5,19 L5.5,19 L5.5,15.5 L8,13 L8,9 L4,9 Z",
+            // Forge / 旧版加载器：铁砧（顶面宽、腰细、底座宽）
+            "Forge" or "旧版加载器" => "M4,6 L20,6 L20,9 L16,9 L16,13 L18.5,15.5 L18.5,19 L5.5,19 L5.5,15.5 L8,13 L8,9 L4,9 Z",
 
-            // Fabric：编织网（横竖交错）
-            "Fabric" => "M5,7 L19,7 M5,12 L19,12 M5,17 L19,17 M7,5 L7,19 M12,5 L12,19 M17,5 L17,19",
+            // Fabric / Quilt：编织网（横竖交错）
+            "Fabric" or "Quilt" => "M5,7 L19,7 M5,12 L19,12 M5,17 L19,17 M7,5 L7,19 M12,5 L12,19 M17,5 L17,19",
 
-            // NeoForge：双层菱形
-            "NeoForge" => "M12,3.5 L20.5,12 L12,20.5 L3.5,12 Z M12,7.5 L16.5,12 L12,16.5 L7.5,12 Z",
+            // NeoForge / 分不清的现代加载器：双层菱形
+            "NeoForge" or "Forge / NeoForge" => "M12,3.5 L20.5,12 L12,20.5 L3.5,12 Z M12,7.5 L16.5,12 L12,16.5 L7.5,12 Z",
 
             // OptiFine：放大镜
             "OptiFine" => "M11,4.5 A6.5,6.5 0 1 1 11,17.5 A6.5,6.5 0 1 1 11,4.5 Z M15.8,15.8 L20.5,20.5",
@@ -674,80 +674,9 @@ public partial class MainWindow : Window
         return result;
     }
 
-    /// <summary>读版本 JSON，拿到真实的 Java 版本和加载器名</summary>
+    /// <summary>读版本 JSON，拿到真实的 Java 版本和加载器名（含 inheritsFrom 链）</summary>
     private static (string Java, string Loader) DescribeVersion(string id)
-    {
-        var mc = VersionService.McDir;
-        var jsonPath = Path.Combine(mc, "versions", id, id + ".json");
-        var java = "17";
-        var loader = "原版";
-        try
-        {
-            var text = File.ReadAllText(jsonPath);
-            using var doc = JsonDocument.Parse(text);
-            var root = doc.RootElement;
-
-            if (root.TryGetProperty("javaVersion", out var jv) &&
-                jv.TryGetProperty("majorVersion", out var jm))
-                java = jm.GetInt32().ToString();
-            else if (root.TryGetProperty("inheritsFrom", out var inh) &&
-                     inh.GetString() is { } parent)
-            {
-                var parentJson = Path.Combine(mc, "versions", parent, parent + ".json");
-                if (File.Exists(parentJson))
-                {
-                    using var pd = JsonDocument.Parse(File.ReadAllText(parentJson));
-                    if (pd.RootElement.TryGetProperty("javaVersion", out var pjv) &&
-                        pjv.TryGetProperty("majorVersion", out var pjm))
-                        java = pjm.GetInt32().ToString();
-                }
-            }
-
-            // 加载器判断：先看 id 名字，再看 mainClass 和 libraries
-            // （整合包的 JSON 是完整版本，没有 inheritsFrom，名字也不带加载器）
-            var lower = id.ToLowerInvariant();
-            var mainClass = root.TryGetProperty("mainClass", out var mcEl) ? mcEl.GetString() ?? "" : "";
-            var mainLower = mainClass.ToLowerInvariant();
-
-            var libNames = new System.Text.StringBuilder();
-            if (root.TryGetProperty("libraries", out var libs) && libs.ValueKind == JsonValueKind.Array)
-            {
-                foreach (var lib in libs.EnumerateArray())
-                {
-                    if (lib.TryGetProperty("name", out var n) && n.GetString() is { } libName)
-                    {
-                        libNames.AppendLine(libName);
-                    }
-                }
-            }
-            var libText = libNames.ToString().ToLowerInvariant();
-
-            if (lower.Contains("fabric-loader") ||
-                mainLower.Contains("fabricmc") ||
-                libText.Contains("net.fabricmc:fabric-loader"))
-            {
-                loader = "Fabric";
-            }
-            else if (lower.Contains("-neoforge-") ||
-                     mainLower.Contains("neoforged") ||
-                     libText.Contains("net.neoforged"))
-            {
-                loader = "NeoForge";
-            }
-            else if (lower.Contains("-forge-") ||
-                     mainLower.Contains("minecraftforge") ||
-                     libText.Contains("net.minecraftforge:forge"))
-            {
-                loader = "Forge";
-            }
-            else if (lower.Contains("optifine") || mainLower.Contains("optifine"))
-            {
-                loader = "OptiFine";
-            }
-        }
-        catch { }
-        return (java, loader);
-    }
+        => VersionDescribe.Describe(VersionService.McDir, id);
 
     private async void LoadDownloadable()
     {

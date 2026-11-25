@@ -15,6 +15,9 @@ public partial class App : Application
     {
         base.OnStartup(e);
 
+        // 所有窗口统一按屏幕工作区收一下（4K 高缩放时固定尺寸会顶出屏幕）
+        WindowFit.Attach();
+
         MigrateOldConfig();
 
         // 任何没接住的异常都写日志并提示，别让窗口直接消失

@@ -316,25 +316,7 @@ public partial class VersionSettingsWindow : Window
     }
 
     private static (string Java, string Loader) DescribeVersion(string mc, string id)
-    {
-        var jsonPath = Path.Combine(mc, "versions", id, id + ".json");
-        var java = "17";
-        var loader = "原版";
-        try
-        {
-            var text = File.ReadAllText(jsonPath);
-            using var doc = JsonDocument.Parse(text);
-            var root = doc.RootElement;
-            if (root.TryGetProperty("javaVersion", out var jv) && jv.TryGetProperty("majorVersion", out var jm))
-                java = jm.GetInt32().ToString();
-            var lower = id.ToLowerInvariant();
-            if (lower.Contains("fabric-loader")) loader = "Fabric";
-            else if (text.Contains("neoforged", StringComparison.OrdinalIgnoreCase)) loader = "NeoForge";
-            else if (lower.Contains("-forge-")) loader = "Forge";
-        }
-        catch { }
-        return (java, loader);
-    }
+        => VersionDescribe.Describe(mc, id);
 
     // ===== 设置 =====
 

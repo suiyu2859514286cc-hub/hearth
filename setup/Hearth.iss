@@ -2,7 +2,7 @@
 ; 编译：ISCC.exe Hearth.iss
 
 #define AppName "Hearth"
-#define AppVersion "0.2.0-beta"
+#define AppVersion "0.4.4-beta"
 #define AppPublisher "Hearth"
 #define AppExe "Hearth.exe"
 
