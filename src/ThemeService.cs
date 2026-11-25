@@ -36,8 +36,8 @@ public static class ThemeService
         new("newyear",   "新岁", "#EF4444", "festival:newyear"),
         new("valentine", "心动", "#F43F5E", "festival:valentine"),
 
-        // 原来的「五彩斑斓」（发反馈解锁）换成这个：金色「秘技」，靠彩蛋解锁
-        new("konami", "秘技", "#FACC15", "konami"),
+        // 五彩斑斓：解锁方式改成反馈窗口里的 Konami 彩蛋
+        new("rainbow", "五彩斑斓", "", "konami"),
     };
 
     public static ThemeItem Current =>
