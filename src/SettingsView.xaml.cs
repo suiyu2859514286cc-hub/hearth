@@ -441,7 +441,12 @@ public partial class SettingsView : UserControl
         // 主题（皮肤）
         var themeStack = new StackPanel();
         var grid = new UniformGrid { Columns = 4, Margin = new Thickness(0, 8, 0, 4) };
-        foreach (var theme in ThemeService.Themes) grid.Children.Add(BuildThemeCard(theme));
+        foreach (var theme in ThemeService.Themes)
+        {
+            // 五彩斑斓是彩蛋：没解锁时列表里根本不出现，解锁后才多一个
+            if (theme.Id == "rainbow" && !ThemeService.IsUnlocked(theme)) continue;
+            grid.Children.Add(BuildThemeCard(theme));
+        }
         themeStack.Children.Add(grid);
         PageHost.Children.Add(Card("主题", themeStack));
     }
