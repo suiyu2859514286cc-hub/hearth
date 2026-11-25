@@ -203,7 +203,7 @@ public static class ThemeService
 
         return theme.Unlock switch
         {
-            "premium" => "带上名字，推门进来。",
+            "premium" => "给童年补的票。",
             "night" => "等钟走过零点，再打开它。",
             "loaders3" => "三种手艺都碰一遍。",
             "versions10" => "让十个房间住进你的启动器。",
