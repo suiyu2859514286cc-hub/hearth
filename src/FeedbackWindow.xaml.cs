@@ -16,6 +16,13 @@ public partial class FeedbackWindow : Window
         PreviewKeyDown += OnPreviewKeyDown;
     }
 
+    private void ContentBox_TextChanged(object sender, System.Windows.Controls.TextChangedEventArgs e)
+    {
+        Placeholder.Visibility = string.IsNullOrEmpty(ContentBox.Text)
+            ? Visibility.Visible
+            : Visibility.Collapsed;
+    }
+
     private void OnPreviewKeyDown(object sender, KeyEventArgs e)
     {
         // 只在反馈窗口里认，别影响主界面。

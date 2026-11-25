@@ -56,13 +56,19 @@
 
             <StackPanel Grid.Row="1" Margin="0,14,0,0">
                 <TextBlock Text="哪里不对劲、想加点什么，随便写。" FontSize="10.5" Foreground="#8FA0B8"/>
-                <TextBox x:Name="ContentBox" Margin="0,10,0,0" FontSize="11.5" Padding="10,8"
-                         Background="#22FFFFFF" Foreground="#FFFFFF" BorderBrush="#44FFFFFF"
-                         AcceptsReturn="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto"
-                         Height="210" VerticalContentAlignment="Top"/>
+                <Grid Margin="0,10,0,0">
+                    <TextBox x:Name="ContentBox" FontSize="11.5" Padding="10,8"
+                             Background="#22FFFFFF" Foreground="#FFFFFF" BorderBrush="#44FFFFFF"
+                             AcceptsReturn="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto"
+                             Height="210" VerticalContentAlignment="Top"
+                             TextChanged="ContentBox_TextChanged"/>
+                    <TextBlock x:Name="Placeholder"
+                               Text="这里貌似有一本上古秘籍，好像是上.......BA。"
+                               IsHitTestVisible="False" Margin="13,10,13,0"
+                               VerticalAlignment="Top" FontSize="11.5" Foreground="#5A6B82"
+                               TextWrapping="Wrap"/>
+                </Grid>
                 <TextBlock x:Name="StatusText" Text="" FontSize="10" Foreground="#8FA0B8" Margin="0,8,0,0"/>
-                <TextBlock Text="这扇窗藏着一串老密码：上上下下、左右左右，最后是 B 和 A。"
-                           FontSize="9" Foreground="#5A6B82" Margin="0,6,0,0" TextWrapping="Wrap"/>
             </StackPanel>
 
             <Grid Grid.Row="2" Margin="0,14,0,0">
