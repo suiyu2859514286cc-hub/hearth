@@ -61,6 +61,7 @@
         <StackPanel Grid.Column="0" Margin="0,4,8,0">
             <Button x:Name="NavLaunch" Content="启动" Style="{StaticResource NavItem}" Tag="launch" Click="Nav_Click"/>
             <Button x:Name="NavUI" Content="个性化" Style="{StaticResource NavItem}" Tag="ui" Click="Nav_Click"/>
+            <Button x:Name="NavNet" Content="联机" Style="{StaticResource NavItem}" Tag="net" Click="Nav_Click"/>
             <Button x:Name="NavOther" Content="其他" Style="{StaticResource NavItem}" Tag="other" Click="Nav_Click"/>
         </StackPanel>
 

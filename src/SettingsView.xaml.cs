@@ -94,7 +94,7 @@ public partial class SettingsView : UserControl
 
     private void ShowPage(string page)
     {
-        foreach (var b in new[] { NavLaunch, NavUI, NavOther })
+        foreach (var b in new[] { NavLaunch, NavUI, NavNet, NavOther })
         {
             if (b == null) continue;
             var on = (string)b.Tag == page;
@@ -106,12 +106,194 @@ public partial class SettingsView : UserControl
         switch (page)
         {
             case "ui": ShowUI(); break;
+            case "net": ShowNet(); break;
             case "other": ShowOther(); break;
             default: ShowLaunch(); break;
         }
     }
 
     public void SelectPage(string page) => ShowPage(page);
+
+    // ===== 联机（樱花内网穿透）=====
+
+    private PortForwarder? _forwarder;
+    private Action? _netRefresh;
+
+    private static TextBox InputBox(string text)
+        => new()
+        {
+            Text = text,
+            Background = new SolidColorBrush(Color.FromArgb(0x22, 0xFF, 0xFF, 0xFF)),
+            Foreground = Brushes.White,
+            BorderBrush = new SolidColorBrush(Color.FromArgb(0x33, 0xFF, 0xFF, 0xFF)),
+            BorderThickness = new Thickness(1),
+            Padding = new Thickness(8, 6, 8, 6),
+            FontSize = 11
+        };
+
+    private void ShowNet()
+    {
+        var owner = Window.GetWindow(this);
+
+        var tokenBox = InputBox(AppSettings.Get("natfrpToken"));
+        var tunnelBox = InputBox(AppSettings.Get("natfrpTunnel"));
+        var addrBox = InputBox(AppSettings.Get("natfrpAddress"));
+        var localBox = InputBox(AppSettings.Get("natfrpLocalPort", "25565"));
+        localBox.Width = 90;
+
+        var status = Text("未启动", 11, "#8FA8C4");
+        var logText = Text("", 9, "#6B7C92");
+        logText.MaxHeight = 110;
+
+        void Refresh()
+        {
+            var running = NatFrpService.IsRunning;
+            status.Text = running ? "frpc 正在运行" : "未启动";
+            status.Foreground = new SolidColorBrush(running
+                ? Color.FromRgb(0x4A, 0xDE, 0x80)
+                : Color.FromRgb(0x8F, 0xA8, 0xC4));
+
+            var log = NatFrpService.Log;
+            if (log.Length > 1400) log = "…" + log[^1400..];
+            logText.Text = log.Trim();
+        }
+
+        if (_netRefresh != null) NatFrpService.Changed -= _netRefresh;
+        _netRefresh = Refresh;
+        NatFrpService.Changed += _netRefresh;
+
+        void Save()
+        {
+            AppSettings.Set("natfrpToken", tokenBox.Text.Trim());
+            AppSettings.Set("natfrpTunnel", tunnelBox.Text.Trim());
+            AppSettings.Set("natfrpAddress", addrBox.Text.Trim());
+            AppSettings.Set("natfrpLocalPort", localBox.Text.Trim());
+        }
+
+        async void StartNet()
+        {
+            Save();
+            var token = tokenBox.Text.Trim();
+            var tunnel = tunnelBox.Text.Trim();
+            if (token == "" || tunnel == "")
+            {
+                DarkDialog.Toast(owner, "先填访问密钥和隧道 ID");
+                return;
+            }
+
+            try
+            {
+                if (!File.Exists(NatFrpService.FrpcPath))
+                {
+                    if (!DarkDialog.Confirm(owner, "下载 frpc",
+                            "第一次用要先下载樱花的 frpc（约 10 MB），现在下？", "下载", "取消"))
+                        return;
+
+                    status.Text = "正在下载 frpc…";
+                    await NatFrpService.EnsureFrpcAsync(
+                        new Progress<string>(m => status.Text = m));
+                }
+
+                var gamePort = MinecraftLanLog.FindRecentPort(DateTime.Now);
+                if (gamePort == null)
+                {
+                    DarkDialog.Info(owner, "没找到局域网端口",
+                        "先回游戏：ESC → 对局域网开放 → 创造局域网世界。\n" +
+                        "聊天框出现「本地游戏已在端口 xxxxx 上开启」之后，再回来点开始。");
+                    return;
+                }
+
+                var local = int.TryParse(localBox.Text.Trim(), out var lp) && lp > 0 ? lp : 25565;
+                _forwarder?.Dispose();
+                _forwarder = new PortForwarder(local, gamePort.Value);
+                try { _forwarder.Start(); }
+                catch (Exception ex)
+                {
+                    _forwarder = null;
+                    DarkDialog.Info(owner, "本地端口被占用",
+                        "端口 " + local + " 起不来：" + ex.Message + "\n换个本地端口再试。");
+                    return;
+                }
+
+                NatFrpService.Start(token, tunnel);
+                status.Text = "已启动：游戏端口 " + gamePort + " → 本地 " + local;
+            }
+            catch (Exception ex)
+            {
+                DarkDialog.Info(owner, "启动失败", ex.Message);
+            }
+        }
+
+        void StopNet()
+        {
+            NatFrpService.Stop();
+            _forwarder?.Dispose();
+            _forwarder = null;
+            status.Text = "已停止";
+        }
+
+        void CopyAddress()
+        {
+            var addr = addrBox.Text.Trim();
+            if (addr == "")
+            {
+                DarkDialog.Toast(owner, "先填连接地址");
+                return;
+            }
+
+            try
+            {
+                Clipboard.SetText(addr);
+                DarkDialog.Toast(owner, "连接地址已复制");
+            }
+            catch { }
+        }
+
+        PageHost.Children.Clear();
+
+        var intro = new StackPanel();
+        intro.Children.Add(Text("用你自己的樱花账号，把「对局域网开放」的世界映射到公网。", 10.5, "#B9C9DC"));
+        intro.Children.Add(Text("启动器只负责拉起隧道，不代注册、不共享账号；访问密钥只存在本机。", 9.5, "#6B7C92"));
+        PageHost.Children.Add(Card("樱花联机（实验）", intro));
+
+        var form = new StackPanel();
+        form.Children.Add(Field("访问密钥", tokenBox));
+        form.Children.Add(Field("隧道 ID", tunnelBox));
+        form.Children.Add(Field("连接地址", addrBox));
+        form.Children.Add(Field("本地端口", localBox));
+        form.Children.Add(Text("连接地址在樱花面板的隧道详情里，形如 cn-xx.natfrp.cloud:12345；本地端口默认 25565，跟隧道里填的一致就行。", 9, "#6B7C92"));
+        PageHost.Children.Add(Card("隧道", form));
+
+        var actions = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 2, 0, 10) };
+        actions.Children.Add(Btn("保存", 70, Save));
+        actions.Children.Add(Btn("开始联机", 90, StartNet));
+        actions.Children.Add(Btn("停止", 70, StopNet));
+        actions.Children.Add(Btn("复制地址", 90, CopyAddress));
+
+        var opPanel = new StackPanel();
+        opPanel.Children.Add(actions);
+        opPanel.Children.Add(status);
+        opPanel.Children.Add(logText);
+        PageHost.Children.Add(Card("操作", opPanel));
+
+        var help = new StackPanel();
+        help.Children.Add(Text("1. 樱花面板建一条 TCP 隧道，本地端口填 25565", 9.5, "#B9C9DC"));
+        help.Children.Add(Text("2. 第一次点「开始联机」会提示下载 frpc", 9.5, "#B9C9DC"));
+        help.Children.Add(Text("3. 进游戏 → 对局域网开放 → 回来点「开始联机」", 9.5, "#B9C9DC"));
+        help.Children.Add(Text("4. 把连接地址发给朋友，他们在游戏里「直接连接」粘贴", 9.5, "#B9C9DC"));
+        help.Children.Add(Text("免费额度：10 Mbps / 2 条隧道 / 每月 5 GiB；需要实名。朋友没正版的话，要装 LAN World Plug-n-Play 这类联机 mod。", 9, "#6B7C92"));
+
+        var panelBtn = Btn("打开樱花面板", 120, () =>
+        {
+            try { Process.Start(new ProcessStartInfo("https://www.natfrp.com/user/") { UseShellExecute = true }); }
+            catch { }
+        });
+        panelBtn.Margin = new Thickness(0, 8, 0, 0);
+        help.Children.Add(panelBtn);
+        PageHost.Children.Add(Card("怎么用", help));
+
+        Refresh();
+    }
 
     // ===== 启动 =====
 
