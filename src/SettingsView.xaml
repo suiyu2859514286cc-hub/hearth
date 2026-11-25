@@ -61,7 +61,9 @@
         <StackPanel Grid.Column="0" Margin="0,4,8,0">
             <Button x:Name="NavLaunch" Content="启动" Style="{StaticResource NavItem}" Tag="launch" Click="Nav_Click"/>
             <Button x:Name="NavUI" Content="个性化" Style="{StaticResource NavItem}" Tag="ui" Click="Nav_Click"/>
-            <Button x:Name="NavNet" Content="联机" Style="{StaticResource NavItem}" Tag="net" Click="Nav_Click"/>
+            <!-- 联机入口暂时隐藏：试过樱花穿透，节点连不上，先让用户用樱花桌面端。
+                 代码保留在 NatFrpService.cs / ShowNet()，以后要恢复把 Visibility 去掉即可。 -->
+            <Button x:Name="NavNet" Content="联机" Style="{StaticResource NavItem}" Tag="net" Click="Nav_Click" Visibility="Collapsed"/>
             <Button x:Name="NavOther" Content="其他" Style="{StaticResource NavItem}" Tag="other" Click="Nav_Click"/>
         </StackPanel>
 
