@@ -196,27 +196,33 @@ public static class ThemeService
         };
     }
 
-    /// <summary>未解锁时显示：怎么做才能解锁，带当前进度</summary>
+    /// <summary>未解锁时显示：给一句机灵的提示，别把答案和进度直接报出来</summary>
     public static string Hint(ThemeItem theme)
     {
         if (string.IsNullOrEmpty(theme.Unlock)) return "默认主题，不用解锁。";
 
         return theme.Unlock switch
         {
-            "premium" => "用微软账号登录一次正版，就能拿到。",
-            "night" => "在凌晨 0 点到 5 点之间启动一次启动器。",
-            "loaders3" => "装过 Fabric、Forge、NeoForge 三种加载器（当前 " + LoaderKinds() + " 种）。",
-            "versions10" => "本机装过 10 个版本（当前 " + InstalledVersionCount() + " 个）。",
-            "folders3" => "添加 3 个游戏文件夹（当前 " + GameFolderService.Folders.Count + " 个）。",
-            "packs2" => "导入 2 个整合包（当前 " + AppSettings.GetInt("importedPacks", 0) + " 个）。",
-            "festival:snow" => "在 12 月 24~26 日启动一次。",
-            "festival:halloween" => "在 10 月 31 日启动一次。",
-            "festival:newyear" => "在 1 月 1 日启动一次。",
-            "festival:valentine" => "在 2 月 14 日启动一次。",
-            "konami" => "在「发个反馈」窗口输入：上上下下、左右左右、B、A。",
-            var n when int.TryParse(n, out var need) =>
-                "累计启动 " + need + " 次（当前 " + LaunchCount + " 次，还差 " +
-                Math.Max(0, need - LaunchCount) + " 次）。",
+            "premium" => "用有名字的账号，登录一次。",
+            "night" => "等钟走过零点，再打开它。",
+            "loaders3" => "三种手艺都碰一遍：Fabric、Forge、NeoForge。",
+            "versions10" => "让十个房间住进你的启动器。",
+            "folders3" => "走过三个不同的游戏文件夹。",
+            "packs2" => "接过两份别人的图纸（整合包）。",
+            "festival:snow" => "十二月二十四到二十六，窗外会白。",
+            "festival:halloween" => "十月的最后一晚，点一盏灯。",
+            "festival:newyear" => "一月一日，钟声响的时候。",
+            "festival:valentine" => "二月十四，天是粉的。",
+            "konami" => "在「发个反馈」窗口敲：上上下下、左右左右、B、A。",
+            var n when int.TryParse(n, out var need) => need switch
+            {
+                5 => "先把炉火点着五次。",
+                10 => "让炉火多烧十次。",
+                20 => "烧到第二十次，石头会发红。",
+                50 => "五十次之后，抬头能看见光。",
+                100 => "第一百次，整片天空都是你的。",
+                _ => "再多走几步。"
+            },
             _ => ""
         };
     }
