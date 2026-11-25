@@ -173,32 +173,53 @@ public static class ThemeService
         };
     }
 
-    /// <summary>解锁小提示：只给暗示，不给答案</summary>
-    public static string Hint(ThemeItem theme) => theme.Unlock switch
+    /// <summary>已解锁时显示：这个主题当时是怎么来的</summary>
+    public static string UnlockText(ThemeItem theme)
     {
-        "premium" => "这世界的门票，只发给有名字的人。",
-        "night" => "当钟走过零点，别急着睡。",
-        "loaders3" => "三种手艺都碰过的人，才懂什么叫兼容。",
-        "versions10" => "十个房间，才装得下你的收藏。",
-        "folders3" => "换过三次风景，你才算走过远路。",
-        "packs2" => "接过两份别人的图纸，你也能当匠人。",
-        "festival:snow" => "一年里总有那么几天，窗外是白的。",
-        "festival:halloween" => "十月的最后一晚，别忘了点灯。",
-        "festival:newyear" => "钟声敲响的那一刻，你还在。",
-        "festival:valentine" => "有些日子，天是粉的。",
-        "feedback" => "说一句话给做这个东西的人听。",
-        "konami" => "上上下下，左右左右，最后 B 和 A。去「发个反馈」那扇窗里敲。",
-        var n when int.TryParse(n, out var need) => need switch
+        if (string.IsNullOrEmpty(theme.Unlock)) return "默认主题，不用解锁。";
+
+        return theme.Unlock switch
         {
-            5 => "炉火刚点起来的时候。",
-            10 => "天快黑的时候，光是紫的。",
-            20 => "烧到发红，还差一会儿。",
-            50 => "抬头时，天边有光在动。",
-            100 => "整片天空都是你的。",
-            _ => "再多走几步。"
-        },
-        _ => ""
-    };
+            "premium" => "登录过一次微软正版账号。",
+            "night" => "在凌晨 0~5 点之间启动过启动器。",
+            "loaders3" => "本机装过 Fabric、Forge、NeoForge 三种加载器。",
+            "versions10" => "本机装过 10 个游戏版本。",
+            "folders3" => "在启动器里添加过 3 个游戏文件夹。",
+            "packs2" => "导入过 2 个整合包。",
+            "festival:snow" => "在 12 月 24~26 日启动过。",
+            "festival:halloween" => "在 10 月 31 日启动过。",
+            "festival:newyear" => "在 1 月 1 日启动过。",
+            "festival:valentine" => "在 2 月 14 日启动过。",
+            "konami" => "在「发个反馈」窗口输入了 ↑↑↓↓←→←→BA。",
+            var n when int.TryParse(n, out var need) => "累计启动 " + need + " 次。",
+            _ => ""
+        };
+    }
+
+    /// <summary>未解锁时显示：怎么做才能解锁，带当前进度</summary>
+    public static string Hint(ThemeItem theme)
+    {
+        if (string.IsNullOrEmpty(theme.Unlock)) return "默认主题，不用解锁。";
+
+        return theme.Unlock switch
+        {
+            "premium" => "用微软账号登录一次正版，就能拿到。",
+            "night" => "在凌晨 0 点到 5 点之间启动一次启动器。",
+            "loaders3" => "装过 Fabric、Forge、NeoForge 三种加载器（当前 " + LoaderKinds() + " 种）。",
+            "versions10" => "本机装过 10 个版本（当前 " + InstalledVersionCount() + " 个）。",
+            "folders3" => "添加 3 个游戏文件夹（当前 " + GameFolderService.Folders.Count + " 个）。",
+            "packs2" => "导入 2 个整合包（当前 " + AppSettings.GetInt("importedPacks", 0) + " 个）。",
+            "festival:snow" => "在 12 月 24~26 日启动一次。",
+            "festival:halloween" => "在 10 月 31 日启动一次。",
+            "festival:newyear" => "在 1 月 1 日启动一次。",
+            "festival:valentine" => "在 2 月 14 日启动一次。",
+            "konami" => "在「发个反馈」窗口输入：上上下下、左右左右、B、A。",
+            var n when int.TryParse(n, out var need) =>
+                "累计启动 " + need + " 次（当前 " + LaunchCount + " 次，还差 " +
+                Math.Max(0, need - LaunchCount) + " 次）。",
+            _ => ""
+        };
+    }
 
     /// <summary>上上下下左右左右 BA：反馈窗口里的彩蛋</summary>
     public static bool UnlockKonami()
