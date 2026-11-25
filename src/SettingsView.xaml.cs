@@ -499,10 +499,9 @@ public partial class SettingsView : UserControl
             Child = stack
         };
 
-        // 已解锁：写它当时是怎么来的；未解锁：写怎么解锁、还差多少
-        card.ToolTip = unlocked
-            ? ThemeService.UnlockText(theme)
-            : ThemeService.Hint(theme);
+        // 只有已解锁的才给悬停提示（写它当时怎么来的）；
+        // 未解锁点击时会弹提示，悬停就别重复了
+        if (unlocked) card.ToolTip = ThemeService.UnlockText(theme);
 
         card.MouseLeftButtonUp += (_, _) =>
         {
