@@ -203,12 +203,12 @@ public static class ThemeService
 
         return theme.Unlock switch
         {
-            "premium" => "用有名字的账号，登录一次。",
+            "premium" => "带上名字，推门进来。",
             "night" => "等钟走过零点，再打开它。",
-            "loaders3" => "三种手艺都碰一遍：Fabric、Forge、NeoForge。",
+            "loaders3" => "三种手艺都碰一遍。",
             "versions10" => "让十个房间住进你的启动器。",
-            "folders3" => "走过三个不同的游戏文件夹。",
-            "packs2" => "接过两份别人的图纸（整合包）。",
+            "folders3" => "换过三处风景。",
+            "packs2" => "接过两份别人的图纸。",
             "festival:snow" => "十二月二十四到二十六，窗外会白。",
             "festival:halloween" => "十月的最后一晚，点一盏灯。",
             "festival:newyear" => "一月一日，钟声响的时候。",
