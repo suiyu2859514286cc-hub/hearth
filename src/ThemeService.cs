@@ -29,6 +29,7 @@ public static class ThemeService
         new("collector","收藏家", "#A855F7", "versions10"),
         new("wanderer", "远行",   "#65A30D", "folders3"),
         new("artisan",  "匠人",   "#EA580C", "packs2"),
+        new("konami",   "秘技",   "#FACC15", "konami"),
 
         // 限定节日
         new("snow",      "雪夜", "#BAE6FD", "festival:snow"),
@@ -156,6 +157,7 @@ public static class ThemeService
         if (string.IsNullOrEmpty(theme.Unlock)) return true;
 
         if (theme.Unlock == "feedback") return AppSettings.GetBool("feedbackSent", false);
+        if (theme.Unlock == "konami") return AppSettings.GetBool("konamiUnlocked", false);
 
         if (theme.Unlock.StartsWith("festival:", StringComparison.Ordinal))
             return AppSettings.GetBool("festival_" + theme.Unlock["festival:".Length..], false);
@@ -186,6 +188,7 @@ public static class ThemeService
         "festival:newyear" => "钟声敲响的那一刻，你还在。",
         "festival:valentine" => "有些日子，天是粉的。",
         "feedback" => "说一句话给做这个东西的人听。",
+        "konami" => "有人在某个写反馈的地方，敲过一串很老的密码。",
         var n when int.TryParse(n, out var need) => need switch
         {
             5 => "炉火刚点起来的时候。",
@@ -197,6 +200,14 @@ public static class ThemeService
         },
         _ => ""
     };
+
+    /// <summary>上上下下左右左右 BA：反馈窗口里的彩蛋</summary>
+    public static bool UnlockKonami()
+    {
+        if (AppSettings.GetBool("konamiUnlocked", false)) return false;
+        AppSettings.Set("konamiUnlocked", "1");
+        return true;
+    }
 
     public static void Use(ThemeItem theme)
     {

@@ -7,10 +7,54 @@ namespace BlockLauncher;
 
 public partial class FeedbackWindow : Window
 {
+    private readonly KonamiWatcher _konami = new();
+
     public FeedbackWindow()
     {
         InitializeComponent();
         Loaded += (_, _) => WindowAnim.PlayIn(RootPanel);
+        PreviewKeyDown += OnPreviewKeyDown;
+    }
+
+    private void OnPreviewKeyDown(object sender, KeyEventArgs e)
+    {
+        // 只在反馈窗口里认，别影响主界面。
+        // 中文输入法开着时，b/a 会被 IME 吞掉，WPF 报的是 ImeProcessed，
+        // 真正的键在 ImeProcessedKey 里。
+        var key = e.Key switch
+        {
+            Key.ImeProcessed => e.ImeProcessedKey,
+            Key.System => e.SystemKey,
+            Key.DeadCharProcessed => e.DeadCharProcessedKey,
+            _ => e.Key
+        };
+
+        if (_konami.Feed(key)) UnlockKonami();
+    }
+
+    private void UnlockKonami()
+    {
+        if (!ThemeService.UnlockKonami())
+        {
+            DarkDialog.Toast(this, "这串密码你已经用过了");
+            return;
+        }
+
+        var main = Owner ?? Application.Current.MainWindow;
+        var yes = DarkDialog.Confirm(main, "彩蛋",
+            "解锁了隐藏主题「秘技」。" + Environment.NewLine + Environment.NewLine +
+            "现在就换上吗？",
+            "换上", "先留着");
+
+        if (yes)
+        {
+            var theme = ThemeService.Themes.FirstOrDefault(t => t.Id == "konami");
+            if (theme != null)
+            {
+                ThemeService.Use(theme);
+                if (main is MainWindow mw) mw.ApplyTheme();
+            }
+        }
     }
 
     private void Send_Click(object sender, RoutedEventArgs e)
