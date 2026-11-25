@@ -461,26 +461,16 @@ public partial class SettingsView : UserControl
 
         var stack = new StackPanel();
 
-        // 未解锁时颜色完全不可见，只留一个空格子；解锁后才露出来
-        stack.Children.Add(unlocked
-            ? new Border
-            {
-                Height = 34,
-                CornerRadius = new CornerRadius(7),
-                Background = theme.Id == "rainbow"
-                    ? ThemeService.RainbowBrush()
-                    : new SolidColorBrush(color),
-                Margin = new Thickness(0, 0, 0, 8)
-            }
-            : new Border
-            {
-                Height = 34,
-                CornerRadius = new CornerRadius(7),
-                Background = Brushes.Transparent,
-                BorderBrush = new SolidColorBrush(Color.FromArgb(0x22, 0xFF, 0xFF, 0xFF)),
-                BorderThickness = new Thickness(1),
-                Margin = new Thickness(0, 0, 0, 8)
-            });
+        stack.Children.Add(new Border
+        {
+            Height = 34,
+            CornerRadius = new CornerRadius(7),
+            Background = theme.Id == "rainbow" && unlocked
+                ? ThemeService.RainbowBrush()
+                : new SolidColorBrush(color),
+            Margin = new Thickness(0, 0, 0, 8),
+            Opacity = unlocked ? 1 : 0.35
+        });
         stack.Children.Add(Text(theme.Name, 11, unlocked ? "#E8F0FA" : "#6B7C92", true));
         stack.Children.Add(Text(
             active ? "使用中" : unlocked ? "已解锁" : "未解锁",
