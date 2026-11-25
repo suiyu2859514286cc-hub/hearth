@@ -49,13 +49,13 @@ public partial class FeedbackWindow : Window
 
         var main = Owner ?? Application.Current.MainWindow;
         var yes = DarkDialog.Confirm(main, "彩蛋",
-            "解锁了隐藏主题「秘技」。" + Environment.NewLine + Environment.NewLine +
+            "解锁了隐藏主题「五彩斑斓」。" + Environment.NewLine + Environment.NewLine +
             "现在就换上吗？",
             "换上", "先留着");
 
         if (yes)
         {
-            var theme = ThemeService.Themes.FirstOrDefault(t => t.Id == "konami");
+            var theme = ThemeService.Themes.FirstOrDefault(t => t.Id == "rainbow");
             if (theme != null)
             {
                 ThemeService.Use(theme);
