@@ -122,30 +122,69 @@ public static class UpdateService
         catch { return null; }
     }
 
-    /// <summary>下载一个文件到指定路径</summary>
+    /// <summary>下载一个文件到指定路径（断点续传 + 自动重试）</summary>
     public static async Task<string> DownloadAsync(string url, long expectedSize, string destPath,
         IProgress<(long Done, long Total)>? progress, CancellationToken ct = default)
     {
-        using var resp = await DownloadClient.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, ct);
-        resp.EnsureSuccessStatusCode();
+        const int maxAttempts = 4;
+        Exception? last = null;
 
-        var total = resp.Content.Headers.ContentLength ?? expectedSize;
-
-        await using var fs = File.Create(destPath);
-        await using var input = await resp.Content.ReadAsStreamAsync(ct);
-
-        var buffer = new byte[81920];
-        long done = 0;
-        while (true)
+        for (var attempt = 1; attempt <= maxAttempts; attempt++)
         {
-            var read = await input.ReadAsync(buffer, ct);
-            if (read <= 0) break;
-            await fs.WriteAsync(buffer.AsMemory(0, read), ct);
-            done += read;
-            progress?.Report((done, total));
+            long done = 0;
+            var total = expectedSize;
+
+            try
+            {
+                if (File.Exists(destPath) && attempt > 1)
+                    done = new FileInfo(destPath).Length;
+
+                using var req = new HttpRequestMessage(HttpMethod.Get, url);
+                if (done > 0)
+                    req.Headers.Range = new RangeHeaderValue(done, null);
+
+                using var resp = await DownloadClient.SendAsync(req, HttpCompletionOption.ResponseHeadersRead, ct);
+                resp.EnsureSuccessStatusCode();
+
+                // 206 = 续传成功；200 = 服务器不支持 Range，从头来
+                if (done > 0 && resp.StatusCode != System.Net.HttpStatusCode.PartialContent)
+                    done = 0;
+
+                if (resp.Content.Headers.ContentLength is long len)
+                    total = done + len;
+
+                await using var fs = new FileStream(destPath,
+                    done > 0 ? FileMode.Append : FileMode.Create,
+                    FileAccess.Write, FileShare.None);
+                await using var input = await resp.Content.ReadAsStreamAsync(ct);
+
+                var buffer = new byte[81920];
+                while (true)
+                {
+                    var read = await input.ReadAsync(buffer, ct);
+                    if (read <= 0) break;
+                    await fs.WriteAsync(buffer.AsMemory(0, read), ct);
+                    done += read;
+                    progress?.Report((done, total));
+                }
+
+                if (total > 0 && done < total)
+                    throw new IOException("下载不完整：" + done + "/" + total + " 字节");
+
+                return destPath;
+            }
+            catch (OperationCanceledException) { throw; }
+            catch (Exception ex)
+            {
+                last = ex;
+                if (attempt < maxAttempts)
+                {
+                    try { await Task.Delay(800 * attempt, ct); } catch (OperationCanceledException) { throw; }
+                }
+            }
         }
 
-        return destPath;
+        throw new IOException("下载失败（已重试 " + maxAttempts + " 次）：" + last?.Message, last);
     }
 
     /// <summary>

@@ -2389,6 +2389,16 @@ public partial class MainWindow : Window
         };
         body.Children.Add(progress);
 
+        // 下载进度文字：多少 MB / 百分之几
+        var progressText = new TextBlock
+        {
+            FontSize = 11,
+            Foreground = new SolidColorBrush(Color.FromRgb(0x8F, 0xA0, 0xB8)),
+            Margin = new Thickness(0, 6, 0, 0),
+            Visibility = Visibility.Collapsed
+        };
+        body.Children.Add(progressText);
+
         DarkDialog.ShowCustom(this, "发现新版本",
             body,
             ("稍后再说", false),
@@ -2404,6 +2414,8 @@ public partial class MainWindow : Window
                 }
 
                 progress.Visibility = Visibility.Visible;
+                progressText.Visibility = Visibility.Visible;
+                progressText.Text = "正在下载更新包…";
 
                 try
                 {
@@ -2412,7 +2424,16 @@ public partial class MainWindow : Window
                         new Progress<(long Done, long Total)>(p =>
                         {
                             if (p.Total > 0)
+                            {
                                 progress.Value = 100.0 * p.Done / p.Total;
+                                progressText.Text = "下载中 " + (100.0 * p.Done / p.Total).ToString("F0") + "%  ("
+                                    + (p.Done / 1048576.0).ToString("F1") + " / "
+                                    + (p.Total / 1048576.0).ToString("F1") + " MB)";
+                            }
+                            else
+                            {
+                                progressText.Text = "已下载 " + (p.Done / 1048576.0).ToString("F1") + " MB";
+                            }
                         }));
 
                     // 用隐藏窗口跑替换脚本，然后自己退出
